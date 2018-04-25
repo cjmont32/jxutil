@@ -1,0 +1,77 @@
+/* 
+ * jx_util.h
+ * Copyright (c) 2018, Cory Montgomery
+ * All Rights Reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *    1. Redistributions of source code must retain the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer.
+ *    2. Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials
+ *       provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+ * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <jx_value.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
+typedef enum
+{
+	JX_ERROR_NONE,
+	JX_ERROR_LIBC,
+	JX_ERROR_INVALID_CONTEXT,
+	JX_ERROR_INVALID_ROOT,
+	JX_ERROR_TRAILING_CHARS,
+	JX_ERROR_ILLEGAL_TOKEN,
+	JX_ERROR_GUARD
+} jx_error;
+
+typedef enum
+{
+	JX_STATE_FIND_TOKEN,
+	JX_STATE_PARSE_ARRAY,
+	JX_STATE_PARSE_NUMBER,
+	JX_STATE_DONE
+} jx_state;
+
+typedef struct
+{
+	size_t line;	
+	size_t col;
+	size_t depth;
+
+	jx_value * object_stack;
+	jx_value * root_value;
+
+	bool syntax_errors;
+} jx_cntx;
+
+jx_cntx * jx_new();
+void jx_free(jx_cntx * cntx);
+
+#ifdef JX_INTERNAL
+void jx_set_error(jx_error error, ...);
+#endif
+
+jx_error jx_get_error();
+const char * const jx_get_error_message();
+
+int jx_parse(jx_cntx * cntx, const char * src, long n_bytes);
