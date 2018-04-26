@@ -11,12 +11,21 @@ struct json_test
 	bool should_pass;	
 	const char * const json;
 } simple_tests[] = {
-	/* valid inputs */
 	{ true, "[]" },
-/*	{ true, "[ ]" },
-	{ true, "[[[]]]" },
+	{ true, "[[]]" },
+	{ true, "[ [], [], [[[]]] ]" },
 
-	{ true, " [ 5 ] " },
+	{ false, "" },
+	{ false, "[" },
+	{ false, "[[]" },
+	{ false, "]" },
+	{ false, "[]]" },
+	{ false, "[,]" },
+	{ false, "[ [], ] " },
+	{ false, "[ [,] ] " },
+	{ false, "[ [], [] [], [] ] " },
+
+/*	{ true, " [ 5 ] " },
 	{ true, " [ 1024 ] " },
 	{ true, "[ -1.5e4, -1.5, -1, 0, 0.5, 2, 3.14, 1024 ]" },
 	{ true, "[[[1024]]]" },
@@ -44,40 +53,49 @@ bool execute_simple_tests()
 {
 	int i;
 	int n_tests;
-
-	bool tests_passed = true;
+	bool tests_passed;
 
 	n_tests = sizeof(simple_tests) / sizeof(struct json_test);	
+	tests_passed = true;
+
+	printf("----------------------------------------------------------\n");
 
 	for (i = 0; i < n_tests; i++) {
 		jx_cntx * cntx;
 		bool passed;
 
 		cntx = jx_new();
+		passed = false;
 
 		if (cntx == NULL) {
 			fprintf(stderr, "%s: %s\n", __FUNCTION__, jx_get_error_message());
 			return false;
 		}
 
-		if (jx_parse(cntx, simple_tests[i].json, strlen(simple_tests[i].json)) == 1) {
+		if (jx_parse(cntx, simple_tests[i].json, strlen(simple_tests[i].json)) != -1 &&
+			jx_get_result(cntx) != NULL) {
 			passed = true;
 		}
 
-		if (passed != simple_tests[i].should_pass) {
-			tests_passed = false;
-		}
-
-		printf("----------------------------------------------------------\n");
 		printf("Json: %s\nResult: %s\nExpected Result: %s\nStatus: %s\n",
 			simple_tests[i].json,
 			passed ? "Passed" : "Failed",
 			simple_tests[i].should_pass ? "Pass" : "Fail",
-			jx_get_error_message());
-		printf("----------------------------------------------------------\n");
+			!passed ? jx_get_error_message() : "OK");
 
 		jx_free(cntx);
+
+		if (passed != simple_tests[i].should_pass) {
+			tests_passed = false;
+			break;
+		}
+
+		if (i < n_tests - 1) {
+			printf("----------------------------------------------------------\n");
+		}
 	}
+
+	printf("----------------------------------------------------------\n");
 
 	return tests_passed;
 }
@@ -196,8 +214,6 @@ bool execute_dynamic_array_test()
 int main()
 {
 	bool tests_passed;
-
-	execute_dynamic_array_test();
 
 	tests_passed = execute_simple_tests();
 

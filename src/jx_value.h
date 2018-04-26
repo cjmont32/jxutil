@@ -36,13 +36,15 @@ typedef enum
 {
 	JX_TYPE_UNDEF,
 	JX_TYPE_ARRAY,
-	JX_TYPE_NUMBER
+	JX_TYPE_NUMBER,
+	JX_TYPE_PTR
 } jx_type;
 
 typedef struct
 {
 	union {
 		double vf;
+		void * vp;
 		void ** vpp;
 	} v;
 
@@ -63,4 +65,5 @@ jx_value * jxa_top(jx_value * array);
 bool jxa_push_number(jx_value * array, double num);
 double jxa_get_number(jx_value * arr, size_t i);
 jx_value * jxv_number_new(double num);
+bool jxa_push_ptr(jx_value * array, void * ptr);
 void jxv_free(jx_value * value);

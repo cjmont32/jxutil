@@ -6,7 +6,6 @@ librel: rel/ bin/jxutil.a
 	cp bin/jxutil.a rel/jxutil.a
 
 run_tests: tests/bin/tests
-	@echo "<------------------------- Test Program Output --------------------------->"
 	@tests/bin/tests
 
 clean:

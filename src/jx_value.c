@@ -197,6 +197,28 @@ jx_value * jxv_number_new(double num)
 	return value;
 }
 
+bool jxa_push_ptr(jx_value * array, void * ptr)
+{
+	jx_value * value;
+
+	if (array == NULL || array->type != JX_TYPE_ARRAY) {
+		return false;
+	}
+
+	if ((value = jxv_new(JX_TYPE_PTR)) == NULL) {
+		return false;
+	}
+
+	value->v.vp = ptr;
+
+	if (!jxa_push(array, value)) {
+		jxv_free(value);
+		return false;
+	}
+
+	return true;
+}
+
 void jxv_free(jx_value * value)
 {
 }

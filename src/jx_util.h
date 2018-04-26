@@ -33,6 +33,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#define JX_ARRAY_STATE_DEFAULT 0
+#define JX_ARRAY_STATE_NEW_MEMBER 1
+#define JX_ARRAY_STATE_SEPARATOR 2
+
+typedef int jx_state;
+
 typedef enum
 {
 	JX_ERROR_NONE,
@@ -40,17 +46,31 @@ typedef enum
 	JX_ERROR_INVALID_CONTEXT,
 	JX_ERROR_INVALID_ROOT,
 	JX_ERROR_TRAILING_CHARS,
+	JX_ERROR_EXPECTED_TOKEN,
+	JX_ERROR_UNEXPECTED_TOKEN,
 	JX_ERROR_ILLEGAL_TOKEN,
+	JX_ERROR_INCOMPLETE_OBJECT,
 	JX_ERROR_GUARD
 } jx_error;
 
 typedef enum
 {
-	JX_STATE_FIND_TOKEN,
-	JX_STATE_PARSE_ARRAY,
-	JX_STATE_PARSE_NUMBER,
-	JX_STATE_DONE
-} jx_state;
+	JX_MODE_UNDEFINED,
+	JX_MODE_START,
+	JX_MODE_PARSE_ARRAY,
+	JX_MODE_PARSE_NUMBER,
+	JX_MODE_DONE
+} jx_mode;
+
+typedef struct
+{
+	jx_value * value;
+	jx_value * return_value;
+
+	jx_state state;
+
+	jx_mode mode;
+} jx_frame;
 
 typedef struct
 {
@@ -59,7 +79,6 @@ typedef struct
 	size_t depth;
 
 	jx_value * object_stack;
-	jx_value * root_value;
 
 	bool syntax_errors;
 } jx_cntx;
@@ -75,3 +94,5 @@ jx_error jx_get_error();
 const char * const jx_get_error_message();
 
 int jx_parse(jx_cntx * cntx, const char * src, long n_bytes);
+
+jx_value * jx_get_result(jx_cntx * cntx);
