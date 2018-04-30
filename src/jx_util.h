@@ -33,10 +33,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define JX_ARRAY_STATE_DEFAULT 0
-#define JX_ARRAY_STATE_NEW_MEMBER 1
-#define JX_ARRAY_STATE_SEPARATOR 2
-
 typedef int jx_state;
 
 typedef enum
