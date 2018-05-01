@@ -4,18 +4,20 @@ The primary aim of this project is to create a JSON parser/generator
 that has the following characteristics and supporting features:
 
 1.	It should be able to compile on most systems.
-2. 	Handling of incomplete input: the parser should be able to
+2.  It should be nearly standalone, with minimal dependencies,
+    e.g. libc.
+3. 	Handling of incomplete input: the parser should be able to
 	persist in an incomplete state, and be resumed once more input
 	becomes available.
-3.	Support for parsing on a separate thread to allow the main
+4.	Support for parsing on a separate thread to allow the main
 	thread to continue buffering JSON may reduce the total parsing
 	time.
-4.	The parser should optionally generate a data-structure or issue
+5.	The parser should optionally generate a data-structure or issue
 	callbacks, depending on user-preference.
-5.	By default the parser/generator should be strict, but support
+6.	By default the parser/generator should be strict, but support
 	for optional JSON type extensions that are cool and/or useful
 	should exist, e.g. UTF-8 numeric constants, and Date.
-6.	The library should support multiple data-sources, such as
+7.	The library should support multiple data-sources, such as
 	C-Strings, and UNIX file-descriptors (support for both blocking/
 	non-blocking modes). And a low-level set of functions should be
 	available to buffer input.

@@ -76,6 +76,7 @@ typedef struct
 
 	jx_value * object_stack;
 
+	bool inside_token;
 	bool syntax_errors;
 } jx_cntx;
 
@@ -84,6 +85,18 @@ void jx_free(jx_cntx * cntx);
 
 #ifdef JX_INTERNAL
 void jx_set_error(jx_error error, ...);
+
+jx_frame * jx_top(jx_cntx * cntx);
+bool jx_push_mode(jx_cntx * cntx, jx_mode mode);
+void jx_pop_mode(jx_cntx * cntx);
+void jx_set_mode(jx_cntx * cntx, jx_mode mode);
+jx_mode jx_get_mode(jx_cntx * cntx);
+void jx_set_state(jx_cntx * cntx, jx_state state);
+jx_state jx_get_state(jx_cntx * cntx);
+void jx_set_value(jx_cntx * cntx, jx_value * value);
+jx_value * jx_get_value(jx_cntx * cntx);
+void jx_set_return(jx_cntx * cntx, jx_value * value);
+jx_value * jx_get_return(jx_cntx * cntx);
 #endif
 
 jx_error jx_get_error();

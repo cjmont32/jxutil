@@ -97,8 +97,6 @@ jx_type jxa_get_type(jx_value * array, size_t i)
 
 jx_value * jxa_get(jx_value * array, size_t i)
 {
-	jx_value * value;
-
 	if (array == NULL || array->type != JX_TYPE_ARRAY || i >= array->length) {
 		return NULL;
 	}
@@ -221,4 +219,28 @@ bool jxa_push_ptr(jx_value * array, void * ptr)
 
 void jxv_free(jx_value * value)
 {
+	jx_type type;
+
+	if (value == NULL) {
+		return;
+	}
+
+	type = jxv_get_type(value);
+
+	if (type == JX_TYPE_PTR) {
+		if (value->v.vp != NULL) {
+			free(value->v.vp);
+		}
+	}
+	else if (type == JX_TYPE_ARRAY) {
+		int i;
+
+		for (i = 0; i < jxa_get_length(value); i++) {
+			jxv_free(jxa_get(value, i));
+		}
+
+		free(value->v.vpp);
+	}
+
+	free(value);
 }

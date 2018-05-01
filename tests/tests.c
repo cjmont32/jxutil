@@ -40,8 +40,8 @@ struct json_test
 	{ false, "[,1]" },
 	{ false, "[5, 2]]" },
 	{ false, "[ 99, 3, $, 45 ]" },
-	{ false, "[ 33, 44.#2, 70 ]" }
-
+	{ false, "[ 33, 44.#2, 70 ]" },
+	{ false, "[ [ 9, 3, 2], [ 1.5, 99.9999, 0.9999 ], [ -40 ], -99.5e-4, [[[[[[ 25, 35, 99, foo, 76 ]]]]]] ]"},
 };
 
 jx_value * parse_json_string(const char * json)

@@ -1,3 +1,5 @@
+CFLAGS = -Wall -Werror -Isrc/
+
 all: bin/jxutil.a
 
 librel: rel/ bin/jxutil.a
@@ -26,10 +28,10 @@ bin/jxutil.a: bin/ bin/jx_util.o bin/jx_value.o
 	ar -rc bin/jxutil.a bin/jx_util.o bin/jx_value.o
 
 bin/jx_util.o: bin/ src/jx_util.c src/jx_util.h src/jx_value.h
-	cc -Isrc/ -c src/jx_util.c -o bin/jx_util.o
+	cc $(CFLAGS) -c src/jx_util.c -o bin/jx_util.o
 
 bin/jx_value.o: bin/ src/jx_value.c src/jx_util.h src/jx_value.h
-	cc -Isrc/ -c src/jx_value.c -o bin/jx_value.o
+	cc $(CFLAGS) -c src/jx_value.c -o bin/jx_value.o
 
 tests/bin/tests: tests/bin/ tests/tests.c bin/jxutil.a
-	cc -Isrc/ tests/tests.c bin/jxutil.a -o tests/bin/tests
+	cc $(CFLAGS) tests/tests.c bin/jxutil.a -o tests/bin/tests

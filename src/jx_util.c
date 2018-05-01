@@ -41,16 +41,15 @@
 #define JX_ARRAY_STATE_NEW_MEMBER 1
 #define JX_ARRAY_STATE_SEPARATOR 2
 
-#define JX_NUMBER_STATE_IS_VALID        (1 << 0)
-#define JX_NUMBER_STATE_ACCEPT_SIGN     (1 << 1)
-#define JX_NUMBER_STATE_ACCEPT_DIGITS   (1 << 2)
-#define JX_NUMBER_STATE_ACCEPT_DEC_PT   (1 << 3)
-#define JX_NUMBER_STATE_ACCEPT_EXP      (1 << 4)
-#define JX_NUMBER_STATE_HAS_DIGITS      (1 << 5)
-#define JX_NUMBER_STATE_HAS_DEC_PT      (1 << 6)
-#define JX_NUMBER_STATE_HAS_EXP         (1 << 7)
-#define JX_NUMBER_STATE_DEFAULT         JX_NUMBER_STATE_ACCEPT_SIGN |\
-                                        JX_NUMBER_STATE_ACCEPT_DIGITS
+#define JX_NUM_IS_VALID        (1 << 0)
+#define JX_NUM_ACCEPT_SIGN     (1 << 1)
+#define JX_NUM_ACCEPT_DIGITS   (1 << 2)
+#define JX_NUM_ACCEPT_DEC_PT   (1 << 3)
+#define JX_NUM_ACCEPT_EXP      (1 << 4)
+#define JX_NUM_HAS_DIGITS      (1 << 5)
+#define JX_NUM_HAS_DEC_PT      (1 << 6)
+#define JX_NUM_HAS_EXP         (1 << 7)
+#define JX_NUM_DEFAULT         JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS
 
 #define JX_DEFAULT_OBJECT_STACK_SIZE 8
 #define JX_DEFAULT_ARRAY_SIZE 8
@@ -98,6 +97,29 @@ jx_cntx * jx_new()
 
 void jx_free(jx_cntx * cntx)
 {
+	if (cntx == NULL) {
+		return;
+	}
+
+	while (jx_get_mode(cntx) != JX_MODE_UNDEFINED) {
+		jx_frame * frame;
+
+		frame = jx_top(cntx);
+
+		if (frame->value != NULL) {
+			jxv_free(frame->value);
+		}
+
+		if (frame->return_value != NULL) {
+			jxv_free(frame->return_value);
+		}
+
+		jx_pop_mode(cntx);
+	}
+
+	jxv_free(cntx->object_stack);
+
+	free(cntx);
 }
 
 void jx_set_error(jx_error error, ...)
@@ -144,7 +166,7 @@ const char * const jx_get_error_message()
 	return jx_error_message;	
 }
 
-jx_frame * jx_stack_top(jx_cntx * cntx)
+jx_frame * jx_top(jx_cntx * cntx)
 {
 	jx_value * value;
 
@@ -159,28 +181,6 @@ jx_frame * jx_stack_top(jx_cntx * cntx)
 	}
 
 	return value->v.vp;
-}
-
-jx_mode jx_get_mode(jx_cntx * cntx)
-{
-	jx_frame * frame;
-
-	if ((frame = jx_stack_top(cntx)) == NULL) {
-		return JX_MODE_UNDEFINED;
-	}
-
-	return frame->mode;
-}
-
-void jx_set_mode(jx_cntx * cntx, jx_mode mode)
-{
-	jx_frame * frame;
-
-	if ((frame = jx_stack_top(cntx)) == NULL) {
-		return;
-	}
-
-	frame->mode = mode;
 }
 
 bool jx_push_mode(jx_cntx * cntx, jx_mode mode)
@@ -216,17 +216,36 @@ void jx_pop_mode(jx_cntx * cntx)
 
 	value = jxa_pop(cntx->object_stack);
 
-	if (value != NULL) {
-		free(value->v.vp);
-		jxv_free(value);
+	jxv_free(value);
+}
+
+void jx_set_mode(jx_cntx * cntx, jx_mode mode)
+{
+	jx_frame * frame;
+
+	if ((frame = jx_top(cntx)) == NULL) {
+		return;
 	}
+
+	frame->mode = mode;
+}
+
+jx_mode jx_get_mode(jx_cntx * cntx)
+{
+	jx_frame * frame;
+
+	if ((frame = jx_top(cntx)) == NULL) {
+		return JX_MODE_UNDEFINED;
+	}
+
+	return frame->mode;
 }
 
 void jx_set_state(jx_cntx * cntx, jx_state state)
 {
 	jx_frame * frame;
 
-	frame = jx_stack_top(cntx);
+	frame = jx_top(cntx);
 
 	if (frame == NULL) {
 		return;
@@ -239,7 +258,7 @@ jx_state jx_get_state(jx_cntx * cntx)
 {
 	jx_frame * frame;
 
-	frame = jx_stack_top(cntx);
+	frame = jx_top(cntx);
 
 	if (frame == NULL) {
 		return -1;	
@@ -252,7 +271,7 @@ void jx_set_value(jx_cntx * cntx, jx_value * value)
 {
 	jx_frame * frame;
 
-	frame = jx_stack_top(cntx);
+	frame = jx_top(cntx);
 
 	if (frame == NULL) {
 		return;
@@ -265,7 +284,7 @@ jx_value * jx_get_value(jx_cntx * cntx)
 {
 	jx_frame * frame;
 
-	frame = jx_stack_top(cntx);
+	frame = jx_top(cntx);
 
 	if (frame == NULL) {
 		return NULL;
@@ -274,31 +293,11 @@ jx_value * jx_get_value(jx_cntx * cntx)
 	return frame->value;
 }
 
-bool jx_push_value(jx_cntx * cntx, jx_value * value)
-{
-	jx_frame * frame;
-	jx_value * array;
-
-	frame = jx_stack_top(cntx);
-
-	if (frame == NULL) {
-		return false;
-	}
-
-	array = frame->value;
-
-	if (array == NULL || array->type != JX_TYPE_ARRAY) {
-		return false;
-	}
-
-	return jxa_push(array, value);
-}
-
 void jx_set_return(jx_cntx * cntx, jx_value * value)
 {
 	jx_frame * frame;
 
-	frame = jx_stack_top(cntx);
+	frame = jx_top(cntx);
 
 	if (frame == NULL) {
 		return;
@@ -311,7 +310,7 @@ jx_value * jx_get_return(jx_cntx * cntx)
 {
 	jx_frame * frame;
 
-	frame = jx_stack_top(cntx);
+	frame = jx_top(cntx);
 
 	if (frame == NULL) {
 		return NULL;
@@ -325,6 +324,10 @@ long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	if (cntx == NULL) {
 		jx_set_error(JX_ERROR_INVALID_CONTEXT);
 		return -1;
+	}
+
+	if (cntx->inside_token) {
+		return pos;
 	}
 
 	while (pos <= end_pos) {
@@ -353,106 +356,144 @@ long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	return pos;
 }
 
-int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, jx_value ** result)
+int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 {
-	jx_frame * tframe;
+	jx_value * ret;
+
+	ret = jx_get_return(cntx);
+
+	if (ret != NULL) {
+		jx_value * array = jx_get_value(cntx);
+
+		if (!jxa_push(array, ret)) {
+			return -1;
+		}
+
+		jx_set_return(cntx, NULL);
+
+		jx_set_state(cntx, JX_ARRAY_STATE_NEW_MEMBER);
+	}
+
+	/* ----------------------------------------------------------------------*
+	 *                       Overview of Array States                        *
+	 * ----------------------------------------------------------------------*
+	 * [      # DEFAULT STATE     - accept: member, closing bracket          *
+	 * [ m    # NEW MEMBER STATE  - accept: seperator token, closing bracket *
+	 * [ m,   # SEPARATOR STATE   - accept: member                           *
+	 * ]      # TERMINAL STATE    - return array to previous frame           *
+	 * ----------------------------------------------------------------------*/
+	if (src[pos] == ',') {
+		if (jx_get_state(cntx) != JX_ARRAY_STATE_NEW_MEMBER) {
+			jx_set_syntax_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col);
+			return -1;
+		}
+
+		pos++;
+
+		cntx->col++;
+
+		jx_set_state(cntx, JX_ARRAY_STATE_SEPARATOR);
+	}
+	else if (src[pos] == ']') {
+		jx_value * array;
+
+		if (jx_get_state(cntx) == JX_ARRAY_STATE_SEPARATOR) {
+			jx_set_syntax_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col);
+			return -1;
+		}
+
+		array = jx_get_value(cntx);
+
+		jx_pop_mode(cntx);
+		jx_set_return(cntx, array);
+
+		pos++;
+
+		cntx->col++;
+		cntx->depth--;
+
+		if (jx_get_mode(cntx) == JX_MODE_START) {
+			jx_set_mode(cntx, JX_MODE_DONE);
+		}
+	}
+	else {
+		if (jx_get_state(cntx) == JX_ARRAY_STATE_NEW_MEMBER) {
+			jx_set_syntax_error(cntx, JX_ERROR_EXPECTED_TOKEN, cntx->line, cntx->col, ",");
+			return -1;
+		}
+	}
+
+	return pos;
+}
+
+int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
+{
+	jx_frame * frame;
 	jx_state state;
 
 	char c;
 
 	bool symbol_end = false;
 
-	if ((tframe = jx_stack_top(cntx)) == NULL) {
+	if ((frame = jx_top(cntx)) == NULL) {
 		return -1;
 	}
 
-	state = tframe->state;
+	state = frame->state;
 
 	while (pos <= end_pos) {
 		c = src[pos];
 
 		if (c == '-' || c == '+') {
-			if (!(state & JX_NUMBER_STATE_ACCEPT_SIGN)) {
-				jx_set_syntax_error(
-					cntx,
-					JX_ERROR_ILLEGAL_TOKEN,
-					cntx->line,
-					cntx->col,
+			if (!(state & JX_NUM_ACCEPT_SIGN)) {
+				jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 					"illegal position for sign character in number");
-
 				return -1;
 			}
 
-			state &= ~(JX_NUMBER_STATE_ACCEPT_SIGN | JX_NUMBER_STATE_IS_VALID);
+			state &= ~(JX_NUM_ACCEPT_SIGN | JX_NUM_IS_VALID);
 		}
 		else if (c >= '0' && c <= '9') {
-			if (!(state & JX_NUMBER_STATE_ACCEPT_DIGITS)) {
-				jx_set_syntax_error(
-					cntx,
-					JX_ERROR_ILLEGAL_TOKEN,
-					cntx->line,
-					cntx->col,
+			if (!(state & JX_NUM_ACCEPT_DIGITS)) {
+				jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 					"invalid number");
-
 				return -1;
 			}
 
-			if (c == '0' && !(state & JX_NUMBER_STATE_HAS_DIGITS)) {
-				state &= ~JX_NUMBER_STATE_ACCEPT_DIGITS;
+			if (c == '0' && !(state & JX_NUM_HAS_DIGITS)) {
+				state &= ~JX_NUM_ACCEPT_DIGITS;
 			}
 
-			if (!(state & (JX_NUMBER_STATE_HAS_DEC_PT | JX_NUMBER_STATE_HAS_EXP))) {
-				state |= JX_NUMBER_STATE_ACCEPT_DEC_PT;
+			if (!(state & (JX_NUM_HAS_DEC_PT | JX_NUM_HAS_EXP))) {
+				state |= JX_NUM_ACCEPT_DEC_PT;
 			}
 
-			if (!(state & JX_NUMBER_STATE_HAS_EXP)) {
-				state |= JX_NUMBER_STATE_ACCEPT_EXP;
+			if (!(state & JX_NUM_HAS_EXP)) {
+				state |= JX_NUM_ACCEPT_EXP;
 			}
 
-			state &= ~JX_NUMBER_STATE_ACCEPT_SIGN;
-
-			state |= (JX_NUMBER_STATE_HAS_DIGITS | JX_NUMBER_STATE_IS_VALID);
+			state &= ~JX_NUM_ACCEPT_SIGN;
+			state |= (JX_NUM_HAS_DIGITS | JX_NUM_IS_VALID);
 		}
 		else if (c == '.') {
-			if (!(state & JX_NUMBER_STATE_ACCEPT_DEC_PT)) {
-				jx_set_syntax_error(
-					cntx,
-					JX_ERROR_ILLEGAL_TOKEN,
-					cntx->line,
-					cntx->col,
+			if (!(state & JX_NUM_ACCEPT_DEC_PT)) {
+				jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 					"illegal position for decimal point in number");
-
 				return -1;
 			}
 
-			state |= (JX_NUMBER_STATE_HAS_DEC_PT | JX_NUMBER_STATE_ACCEPT_DIGITS);
-
-			state &= ~(
-				JX_NUMBER_STATE_ACCEPT_DEC_PT |
-				JX_NUMBER_STATE_ACCEPT_EXP |
-				JX_NUMBER_STATE_IS_VALID);
+			state |= (JX_NUM_HAS_DEC_PT | JX_NUM_ACCEPT_DIGITS);
+			state &= ~(JX_NUM_ACCEPT_DEC_PT | JX_NUM_ACCEPT_EXP | JX_NUM_IS_VALID);
 		}
 		else if (c == 'e' || c == 'E') {
-			if (!(state & JX_NUMBER_STATE_ACCEPT_EXP)) {
-				jx_set_syntax_error(
-					cntx,
-					JX_ERROR_ILLEGAL_TOKEN,
-					cntx->line,
-					cntx->col,
+			if (!(state & JX_NUM_ACCEPT_EXP)) {
+				jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 					"illegal position for exponent in number");
-
 				return -1;
 			}
 
-			state |= (
-				JX_NUMBER_STATE_HAS_EXP |
-				JX_NUMBER_STATE_ACCEPT_SIGN |
-				JX_NUMBER_STATE_ACCEPT_DIGITS);
-
-			state &= ~(
-				JX_NUMBER_STATE_IS_VALID |
-				JX_NUMBER_STATE_ACCEPT_EXP |
-				JX_NUMBER_STATE_ACCEPT_DEC_PT);
+			state |= (JX_NUM_HAS_EXP | JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS);
+			state &= ~(JX_NUM_IS_VALID | JX_NUM_ACCEPT_EXP | JX_NUM_ACCEPT_DEC_PT);
 		}
 		else {
 			symbol_end = true;
@@ -460,13 +501,8 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, jx
 		}
 
 		if (jx_buf_pos == JX_BUF_SIZE - 1) {
-			jx_set_syntax_error(
-				cntx,
-				JX_ERROR_ILLEGAL_TOKEN,
-				cntx->line,
-				cntx->col,
+			jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 				"number too large");
-
 			return -1;
 		}
 
@@ -476,28 +512,21 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, jx
 	}
 
 	if (symbol_end) {
-		if (state & JX_NUMBER_STATE_IS_VALID) {
+		if (state & JX_NUM_IS_VALID) {
 			jx_buf[jx_buf_pos] = '\0';
 
-			if (result != NULL) {
-				*result = jxv_number_new(strtod(jx_buf, NULL));
-			}
-
 			jx_buf_pos = 0;
+
+			frame->value = jxv_number_new(strtod(jx_buf, NULL));
 		}
 		else {
-			jx_set_syntax_error(
-				cntx,
-				JX_ERROR_ILLEGAL_TOKEN,
-				cntx->line,
-				cntx->col,
+			jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 				"invalid number");
-
 			return -1;
 		}
 	}
 
-	tframe->state = state;
+	frame->state = state;
 
 	return pos;
 }
@@ -531,74 +560,31 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 		}
 
 		if (jx_get_mode(cntx) == JX_MODE_PARSE_ARRAY) {
-			jx_value * ret;
+			long new_pos = jx_parse_array(cntx, src, pos, end_pos);
 
-			ret = jx_get_return(cntx);
-
-			if (ret != NULL) {
-				if (!jx_push_value(cntx, ret)) {
-					return -1;
-				}
-
-				jx_set_return(cntx, NULL);
-				jx_set_state(cntx, JX_ARRAY_STATE_NEW_MEMBER);
+			if (new_pos == -1) {
+				return -1;
 			}
 
-			if (src[pos] == ',') {
-				if (jx_get_state(cntx) != JX_ARRAY_STATE_NEW_MEMBER) {
-					jx_set_syntax_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col);
-					return -1;	
-				}
-
-				pos++;
-				cntx->col++;
-
-				jx_set_state(cntx, JX_ARRAY_STATE_SEPARATOR);
-
+			if (pos != new_pos) {
+				pos = new_pos;
 				continue;
-			}
-			else if (src[pos] == ']') {
-				jx_value * array;
-
-				if (jx_get_state(cntx) == JX_ARRAY_STATE_SEPARATOR) {
-					jx_set_syntax_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col);
-					return -1;
-				}
-
-				array = jx_get_value(cntx);
-
-				jx_pop_mode(cntx);
-				jx_set_return(cntx, array);
-
-				pos++;
-				cntx->col++;
-				cntx->depth--;
-
-				if (jx_get_mode(cntx) == JX_MODE_START) {
-					jx_set_mode(cntx, JX_MODE_DONE);
-				}
-
-				continue;
-			}
-			else {
-				if (jx_get_state(cntx) == JX_ARRAY_STATE_NEW_MEMBER) {
-					jx_set_syntax_error(cntx, JX_ERROR_EXPECTED_TOKEN, cntx->line, cntx->col, ",");
-					return -1;
-				}
 			}
 		}
 		else if (jx_get_mode(cntx) == JX_MODE_PARSE_NUMBER) {
-			jx_value * number = NULL;
+			jx_value * number;
 
-			pos = jx_parse_number(cntx, src, pos, end_pos, &number);
+			pos = jx_parse_number(cntx, src, pos, end_pos);
 
 			if (pos == -1) {
 				return -1;
 			}
 
-			if (number != NULL) {
+			if ((number = jx_get_value(cntx)) != NULL) {
 				jx_pop_mode(cntx);
 				jx_set_return(cntx, number);
+
+				cntx->inside_token = false;
 			}
 
 			continue;
@@ -617,32 +603,33 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 		if (src[pos] == '[') {
 			jx_value * array;
 
+			if (!jx_push_mode(cntx, JX_MODE_PARSE_ARRAY)) {
+				return -1;
+			}
+
 			array = jxa_new(JX_DEFAULT_ARRAY_SIZE);
 
 			if (array == NULL) {
 				return -1;
 			}
 
-			if (!jx_push_mode(cntx, JX_MODE_PARSE_ARRAY)) {
-				return -1;
-			}
-
 			jx_set_value(cntx, array);
 
 			pos++;
+
 			cntx->col++;
 			cntx->depth++;
 		}
 		else if (src[pos] == '-' || (src[pos] >= '0' && src[pos] <= '9')) {
-			bool success;
-
-			success = jx_push_mode(cntx, JX_MODE_PARSE_NUMBER);
-
-			jx_set_state(cntx, JX_NUMBER_STATE_DEFAULT);
+			bool success = jx_push_mode(cntx, JX_MODE_PARSE_NUMBER);
 
 			if (!success) {
 				return -1;
 			}
+
+			cntx->inside_token = true;
+
+			jx_set_state(cntx, JX_NUM_DEFAULT);
 		}
 		else {
 			char token[2];
@@ -661,6 +648,8 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 
 jx_value * jx_get_result(jx_cntx * cntx)
 {
+	jx_value * ret;
+
 	if (cntx == NULL) {
 		jx_set_error(JX_ERROR_INVALID_CONTEXT);
 		return NULL;
@@ -675,5 +664,9 @@ jx_value * jx_get_result(jx_cntx * cntx)
 		return NULL;
 	}
 
-	return jx_get_return(cntx);
+	ret = jx_get_return(cntx);
+
+	jx_set_return(cntx, NULL);
+
+	return ret;
 }
