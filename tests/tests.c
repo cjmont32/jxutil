@@ -6,6 +6,14 @@
 #include <stdio.h>
 #include <string.h>
 
+static bool verbose = false;
+
+typedef enum
+{
+	RUN_TESTS,
+	CHECK_STRING
+} test_action;
+
 struct json_test
 {
 	bool should_pass;	
@@ -52,12 +60,12 @@ jx_value * parse_json_string(const char * json)
 	cntx = jx_new();
 
 	if (cntx == NULL) {
-		return false;
+		return NULL;
 	}
 
 	if (jx_parse(cntx, json, strlen(json)) == -1 || (value = jx_get_result(cntx)) == NULL) {
 		jx_free(cntx);
-		return false;
+		return NULL;
 	}
 
 	jx_free(cntx);
@@ -65,56 +73,116 @@ jx_value * parse_json_string(const char * json)
 	return value;
 }
 
-bool execute_simple_tests()
+void execute_simple_tests()
 {
 	int i;
-	int n_tests;
-	bool tests_passed;
+	int n_tests, n_passed;
+	bool output = false;
 
 	jx_value * value;
 
 	n_tests = sizeof(simple_tests) / sizeof(struct json_test);	
-	tests_passed = true;
-
-	printf("----------------------------------------------------------\n");
+	n_passed = 0;
 
 	for (i = 0; i < n_tests; i++) {
 		bool passed = false;
 
 		if ((value = parse_json_string(simple_tests[i].json)) != NULL) {
-			passed = true;
 			jxv_free(value);
+			passed = true;
 		}
 
-		printf("Json: %s\nResult: %s\nExpected Result: %s\nMessage: %s\n",
-			simple_tests[i].json,
-			passed ? "Passed" : "Failed",
-			simple_tests[i].should_pass ? "Pass" : "Fail",
-			!passed ? jx_get_error_message() : "OK");
+		if (verbose || passed != simple_tests[i].should_pass) {
+			if (!output) {
+				printf("----------------------------------------------------------\n");
+				output = true;
+			}
 
-		if (passed != simple_tests[i].should_pass) {
-			tests_passed = false;
-			break;
-		}
+			printf("Json: %s\nResult: %s\nExpected Result: %s\nMessage: %s\n",
+				simple_tests[i].json,
+				passed ? "Passed" : "Failed",
+				simple_tests[i].should_pass ? "Pass" : "Fail",
+				!passed ? jx_get_error_message() : "OK");
 
-		if (i < n_tests - 1) {
 			printf("----------------------------------------------------------\n");
+		}
+
+		if (passed == simple_tests[i].should_pass) {
+			n_passed++;
 		}
 	}
 
-	printf("----------------------------------------------------------\n");
-
-	return tests_passed;
+	printf("%d of %d Tests Passed (%.1f%%)\n", n_passed, n_tests, ((float)n_passed / (float)n_tests) * 100);
 }
 
-int main()
+bool validate_json_string(const char * json)
 {
-	bool tests_passed;
+	jx_value * value;
 
-	tests_passed = execute_simple_tests();
+	if (json == NULL) {
+		return false;
+	}
 
-	if (tests_passed) {
-		printf("All tests passed!\n");
+	if ((value = parse_json_string(json)) == NULL) {
+		fprintf(stderr, "%s\n", jx_get_error_message());
+		return false;
+	}
+
+	printf("JSON OK\n");
+
+	jxv_free(value);
+
+	return true;
+}
+
+void print_useage()
+{
+	printf("tests [-v] [-c json_string] --run_tests\n");
+}
+
+int main(int argc, char ** argv)
+{
+	test_action action;
+	char * json;
+	int i;
+
+	action = RUN_TESTS;
+	json = NULL;
+	i = 1;
+
+	while (i < argc) {
+		if (strcmp(argv[i], "-v") == 0) {
+			verbose = true;
+		}
+		else if (strcmp(argv[i], "--run_tests") == 0) {
+			action = RUN_TESTS;
+		}
+		else {
+			if (i + 1 == argc) {
+				print_useage();
+				return 1;
+			}
+
+			if (strcmp(argv[i], "-c") == 0) {
+				action = CHECK_STRING;
+				json = argv[++i];
+			}
+			else {
+				print_useage();
+				return 1;
+			}
+		}
+
+		i++;
+	}
+
+	switch (action) {
+		case RUN_TESTS:
+			execute_simple_tests();
+			break;
+		case CHECK_STRING:
+			validate_json_string(json);
+			break;
 	}
 
 	return 0;
