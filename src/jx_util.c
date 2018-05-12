@@ -69,7 +69,7 @@ static const char * const jx_error_messages[JX_ERROR_GUARD] =
 	"Syntax Error [%lu:%lu]: Root value must be either an array or an object.",
 	"Syntax Error [%lu:%lu]: Illegal characters outside of root object, starting with (%c).",
 	"Syntax Error [%lu:%lu]: Missing token (%s).",
-	"Syntax Error [%lu:%lu]: Unexpected token.",
+	"Syntax Error [%lu:%lu]: Unexpected token (%s).",
 	"Syntax Error [%lu:%lu]: Illegal token (%s).",
 	"Syntax Error [%lu:%lu]: Incomplete JSON object."
 };
@@ -164,6 +164,25 @@ jx_error jx_get_error()
 const char * const jx_get_error_message()
 {
 	return jx_error_message;	
+}
+
+void jx_illegal_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
+{
+	if (cntx == NULL) {
+		return;
+	}
+
+	if (src[pos] < 0x20) {
+		jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "control character");
+	}
+	else {
+		char token[2];
+
+		token[0] = src[pos];
+		token[1] = '\0';
+
+		jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, token);
+	}
 }
 
 jx_frame * jx_top(jx_cntx * cntx)
@@ -356,9 +375,40 @@ long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	return pos;
 }
 
+jx_token_type jx_get_token_type(const char * src, long pos, long end_pos)
+{
+	if (src[pos] == '[') {
+		return JX_TOKEN_ARRAY_BEGIN;
+	}
+	else if (src[pos] == ',') {
+		return JX_TOKEN_ARRAY_SEPARATOR;
+	}
+	else if (src[pos] == ']') {
+		return JX_TOKEN_ARRAY_END;
+	}
+	else if (src[pos] == '-' || (src[pos] >= '0' && src[pos] <= '9')) {
+		return JX_TOKEN_NUMBER;
+	}
+	else {
+		return JX_TOKEN_NONE;
+	}
+}
+
+bool jx_start_token(jx_token_type token_type)
+{
+	switch (token_type) {
+		case JX_TOKEN_ARRAY_BEGIN:
+		case JX_TOKEN_NUMBER:
+			return true;
+		default:
+			return false;
+	}
+}
+
 int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 {
 	jx_value * ret;
+	jx_token_type token_type;
 
 	ret = jx_get_return(cntx);
 
@@ -374,6 +424,8 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		jx_set_state(cntx, JX_ARRAY_STATE_NEW_MEMBER);
 	}
 
+	token_type = jx_get_token_type(src, pos, end_pos);
+
 	/* ----------------------------------------------------------------------*
 	 *                       Overview of Array States                        *
 	 * ----------------------------------------------------------------------*
@@ -382,9 +434,9 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	 * [ m,   # SEPARATOR STATE   - accept: member                           *
 	 * ]      # TERMINAL STATE    - return array to previous frame           *
 	 * ----------------------------------------------------------------------*/
-	if (src[pos] == ',') {
+	if (token_type == JX_TOKEN_ARRAY_SEPARATOR) {
 		if (jx_get_state(cntx) != JX_ARRAY_STATE_NEW_MEMBER) {
-			jx_set_syntax_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col);
+			jx_set_syntax_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col, ",");
 			return -1;
 		}
 
@@ -394,11 +446,11 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 
 		jx_set_state(cntx, JX_ARRAY_STATE_SEPARATOR);
 	}
-	else if (src[pos] == ']') {
+	else if (token_type == JX_TOKEN_ARRAY_END) {
 		jx_value * array;
 
 		if (jx_get_state(cntx) == JX_ARRAY_STATE_SEPARATOR) {
-			jx_set_syntax_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col);
+			jx_set_syntax_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col, ",");
 			return -1;
 		}
 
@@ -417,6 +469,11 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		}
 	}
 	else {
+		if (token_type == JX_TOKEN_NONE) {
+			jx_illegal_token(cntx, src, pos, end_pos);
+			return -1;
+		}
+
 		if (jx_get_state(cntx) == JX_ARRAY_STATE_NEW_MEMBER) {
 			jx_set_syntax_error(cntx, JX_ERROR_EXPECTED_TOKEN, cntx->line, cntx->col, ",");
 			return -1;
@@ -536,6 +593,9 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 	long pos;
 	long end_pos;
 
+	jx_mode mode;
+	jx_token_type token_type;
+
 	if (cntx == NULL) {
 		jx_set_error(JX_ERROR_INVALID_CONTEXT);
 		return -1;
@@ -559,7 +619,9 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 			break;
 		}
 
-		if (jx_get_mode(cntx) == JX_MODE_PARSE_ARRAY) {
+		mode = jx_get_mode(cntx);
+
+		if (mode == JX_MODE_PARSE_ARRAY) {
 			long new_pos = jx_parse_array(cntx, src, pos, end_pos);
 
 			if (new_pos == -1) {
@@ -571,7 +633,7 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 				continue;
 			}
 		}
-		else if (jx_get_mode(cntx) == JX_MODE_PARSE_NUMBER) {
+		else if (mode == JX_MODE_PARSE_NUMBER) {
 			jx_value * number;
 
 			pos = jx_parse_number(cntx, src, pos, end_pos);
@@ -589,27 +651,34 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 
 			continue;
 		}
-
-		if (jx_get_mode(cntx) == JX_MODE_DONE) {
+		else if (mode == JX_MODE_DONE) {
 			jx_set_syntax_error(cntx, JX_ERROR_TRAILING_CHARS, cntx->line, cntx->col, src[pos]);
 			return -1;
 		}
 
-		if (cntx->depth == 0 && src[pos] != '[') {
+		token_type = jx_get_token_type(src, pos, end_pos);
+
+		if (!jx_start_token(token_type)) {
+			jx_illegal_token(cntx, src, pos, end_pos);
+			return -1;
+		}
+
+		if (cntx->depth == 0 && token_type != JX_TOKEN_ARRAY_BEGIN) {
 			jx_set_syntax_error(cntx, JX_ERROR_INVALID_ROOT, cntx->line, cntx->col);
 			return -1;
 		}
 		
-		if (src[pos] == '[') {
+		if (token_type == JX_TOKEN_ARRAY_BEGIN) {
 			jx_value * array;
-
-			if (!jx_push_mode(cntx, JX_MODE_PARSE_ARRAY)) {
-				return -1;
-			}
 
 			array = jxa_new(JX_DEFAULT_ARRAY_SIZE);
 
 			if (array == NULL) {
+				return -1;
+			}
+
+			if (!jx_push_mode(cntx, JX_MODE_PARSE_ARRAY)) {
+				jxv_free(array);
 				return -1;
 			}
 
@@ -620,7 +689,7 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 			cntx->col++;
 			cntx->depth++;
 		}
-		else if (src[pos] == '-' || (src[pos] >= '0' && src[pos] <= '9')) {
+		else if (token_type == JX_TOKEN_NUMBER) {
 			bool success = jx_push_mode(cntx, JX_MODE_PARSE_NUMBER);
 
 			if (!success) {
@@ -630,16 +699,6 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 			cntx->inside_token = true;
 
 			jx_set_state(cntx, JX_NUM_DEFAULT);
-		}
-		else {
-			char token[2];
-
-			token[0] = src[pos];
-			token[1] = '\0';
-
-			jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, token);
-
-			return -1;
 		}
 	}
 

@@ -58,6 +58,15 @@ typedef enum
 	JX_MODE_DONE
 } jx_mode;
 
+typedef enum
+{
+	JX_TOKEN_NONE,
+	JX_TOKEN_ARRAY_BEGIN,
+	JX_TOKEN_ARRAY_SEPARATOR,
+	JX_TOKEN_ARRAY_END,
+	JX_TOKEN_NUMBER
+} jx_token_type;
+
 typedef struct
 {
 	jx_value * value;
