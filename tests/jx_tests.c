@@ -2,11 +2,13 @@
  * Copyright (c) 2018, Cory Montgomery
  */
 
-#include <jx_util.h>
 #include <stdio.h>
+#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include <jx_util.h>
 
 enum
 {
@@ -59,27 +61,6 @@ struct json_test
 	{ false, "[ 33, 44.#2, 70 ]" },
 	{ false, "[ [ 9, 3, 2], [ 1.5, 99.9999, 0.9999 ], [ -40 ], -99.5e-4, [[[[[[ 25, 35, 99, foo, 76 ]]]]]] ]"},
 };
-
-jx_value * parse_json_string(const char * json)
-{
-	jx_cntx * cntx;
-	jx_value * value;
-
-	cntx = jx_new();
-
-	if (cntx == NULL) {
-		return NULL;
-	}
-
-	if (jx_parse(cntx, json, strlen(json)) == -1 || (value = jx_get_result(cntx)) == NULL) {
-		jx_free(cntx);
-		return NULL;
-	}
-
-	jx_free(cntx);
-
-	return value;
-}
 
 void sum_func(jx_value * number, void * ptr)
 {
@@ -139,21 +120,21 @@ bool execute_muli_part_parse_test()
 	printf("Testing parsing from multiple strings:\n");
 
 	if ((cntx = jx_new()) == NULL) {
-		fprintf(stderr, "%s\n", jx_get_error_message());
+		fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
 		return false;
 	}
 
 	for (i = 0; i < 3; i++) {
-		if (jx_parse(cntx, json[i], strlen(json[i])) == -1) {
+		if (jx_parse_json(cntx, json[i], strlen(json[i])) == -1) {
 			jx_free(cntx);
-			fprintf(stderr, "%s\n", jx_get_error_message());
+			fprintf(stderr, "%s\n", jx_get_error_message(cntx));
 			return false;
 		}
 	}
 
 	if ((array = jx_get_result(cntx)) == NULL) {
 		jx_free(cntx);
-		fprintf(stderr, "%s\n", jx_get_error_message());
+		fprintf(stderr, "%s\n", jx_get_error_message(cntx));
 		return false;
 	}
 
@@ -163,7 +144,7 @@ bool execute_muli_part_parse_test()
 
 	if (!iterate_array(array, &sum, sum_func)) {
 		jxv_free(array);
-		fprintf(stderr, "%s\n", jx_get_error_message());
+		fprintf(stderr, "%s\n", jx_get_error_message(cntx));
 		return false;
 	}
 
@@ -186,6 +167,7 @@ bool execute_simple_tests()
 	int n_tests, n_passed;
 	bool output = false;
 
+	jx_cntx * cntx;
 	jx_value * value;
 
 	printf("Executing simple tests:\n");
@@ -196,7 +178,14 @@ bool execute_simple_tests()
 	for (i = 0; i < n_tests; i++) {
 		bool passed = false;
 
-		if ((value = parse_json_string(simple_tests[i].json)) != NULL) {
+		if ((cntx = jx_new()) == NULL) {
+			fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
+			break;
+		}
+
+		jx_parse_json(cntx, simple_tests[i].json, strlen(simple_tests[i].json));
+
+		if ((value = jx_get_result(cntx)) != NULL) {
 			jxv_free(value);
 			passed = true;
 		}
@@ -211,7 +200,7 @@ bool execute_simple_tests()
 				simple_tests[i].json,
 				passed ? "Passed" : "Failed",
 				simple_tests[i].should_pass ? "Pass" : "Fail",
-				!passed ? jx_get_error_message() : "OK");
+				!passed ? jx_get_error_message(cntx) : "OK");
 
 			printf("----------------------------------------------------------\n");
 		}
@@ -219,6 +208,8 @@ bool execute_simple_tests()
 		if (passed == simple_tests[i].should_pass) {
 			n_passed++;
 		}
+
+		jx_free(cntx);
 	}
 
 	printf("%d of %d Tests Passed (%.1f%%)\n", n_passed, n_tests, ((float)n_passed / (float)n_tests) * 100);
@@ -243,20 +234,30 @@ bool run_tests()
 
 bool validate_json_string(const char * json)
 {
+	jx_cntx * cntx;
 	jx_value * value;
 
 	if (json == NULL) {
 		return false;
 	}
 
-	if ((value = parse_json_string(json)) == NULL) {
-		fprintf(stderr, "%s\n", jx_get_error_message());
+	if ((cntx = jx_new()) == NULL) {
+		fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
+		return false;
+	}
+
+	jx_parse_json(cntx, json, strlen(json));
+
+	if ((value = jx_get_result(cntx)) == NULL) {
+		jx_free(cntx);
+		fprintf(stderr, "%s\n", jx_get_error_message(cntx));
 		return false;
 	}
 
 	printf("JSON OK\n");
 
 	jxv_free(value);
+	jx_free(cntx);
 
 	return true;
 }

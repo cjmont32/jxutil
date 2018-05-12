@@ -29,9 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define JX_INTERNAL
-
-#include <jx_util.h>
+#include <jx_value.h>
 
 jx_type jxv_get_type(jx_value * value)
 {
@@ -47,7 +45,6 @@ jx_value * jxv_new(jx_type type)
 	jx_value * value;
 
 	if ((value = calloc(1, sizeof(jx_value))) == NULL) {
-		jx_set_error(JX_ERROR_LIBC);
 		return NULL;
 	}	
 
@@ -65,7 +62,6 @@ jx_value * jxa_new(size_t capacity)
 	}
 
 	if ((array->v.vpp = malloc(sizeof(jx_value *) * capacity)) == NULL) {
-		jx_set_error(JX_ERROR_LIBC);
 		free(array);
 		return NULL;
 	}
@@ -118,7 +114,6 @@ bool jxa_push(jx_value * array, jx_value * value)
 		newArray = realloc(array->v.vpp, sizeof(jx_value *) * newSize);
 
 		if (newArray == NULL) {
-			jx_set_error(JX_ERROR_LIBC);
 			return false;
 		}
 

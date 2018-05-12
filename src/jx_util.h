@@ -33,13 +33,15 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#define JX_ERROR_BUF_MAX_SIZE 2048
+
 typedef int jx_state;
 
 typedef enum
 {
 	JX_ERROR_NONE,
-	JX_ERROR_LIBC,
 	JX_ERROR_INVALID_CONTEXT,
+	JX_ERROR_LIBC,
 	JX_ERROR_INVALID_ROOT,
 	JX_ERROR_TRAILING_CHARS,
 	JX_ERROR_EXPECTED_TOKEN,
@@ -86,14 +88,16 @@ typedef struct
 	jx_value * object_stack;
 
 	bool inside_token;
-	bool syntax_errors;
+
+	char error_msg[JX_ERROR_BUF_MAX_SIZE];
+	jx_error error;
 } jx_cntx;
 
 jx_cntx * jx_new();
 void jx_free(jx_cntx * cntx);
 
 #ifdef JX_INTERNAL
-void jx_set_error(jx_error error, ...);
+void jx_set_error(jx_cntx * cntx, jx_error error, ...);
 
 jx_frame * jx_top(jx_cntx * cntx);
 bool jx_push_mode(jx_cntx * cntx, jx_mode mode);
@@ -108,9 +112,9 @@ void jx_set_return(jx_cntx * cntx, jx_value * value);
 jx_value * jx_get_return(jx_cntx * cntx);
 #endif
 
-jx_error jx_get_error();
-const char * const jx_get_error_message();
+jx_error jx_get_error(jx_cntx * cntx);
+const char * const jx_get_error_message(jx_cntx * cntx);
 
-int jx_parse(jx_cntx * cntx, const char * src, long n_bytes);
+int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes);
 
 jx_value * jx_get_result(jx_cntx * cntx);

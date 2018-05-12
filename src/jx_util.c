@@ -31,11 +31,12 @@
 
 #define JX_INTERNAL
 
-#include <jx_util.h>
-#include <string.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <errno.h>
+#include <string.h>
+#include <stdarg.h>
+
+#include <jx_util.h>
 
 #define JX_ARRAY_STATE_DEFAULT 0
 #define JX_ARRAY_STATE_NEW_MEMBER 1
@@ -53,18 +54,15 @@
 
 #define JX_DEFAULT_OBJECT_STACK_SIZE 8
 #define JX_DEFAULT_ARRAY_SIZE 8
-#define JX_ERROR_MESSAGE_MAX_SIZE 2048
 #define JX_BUF_SIZE 26
 
 static char jx_buf[JX_BUF_SIZE];
 static int jx_buf_pos;
 
-static jx_error jx_err;
-static char jx_error_message[JX_ERROR_MESSAGE_MAX_SIZE];
 static const char * const jx_error_messages[JX_ERROR_GUARD] =
 {
 	"OK",
-	"Error: Invalid context used.",
+	"Invalid Context",
 	"LIBC Error: errno: (%d), message: (%s).",
 	"Syntax Error [%lu:%lu]: Root value must be either an array or an object.",
 	"Syntax Error [%lu:%lu]: Illegal characters outside of root object, starting with (%c).",
@@ -79,12 +77,10 @@ jx_cntx * jx_new()
 	jx_cntx * cntx;
 
 	if ((cntx = calloc(1, sizeof(jx_cntx))) == NULL) {
-		jx_set_error(JX_ERROR_LIBC);
 		return NULL;
 	}
 
 	if ((cntx->object_stack = jxa_new(JX_DEFAULT_OBJECT_STACK_SIZE)) == NULL) {
-		jx_set_error(JX_ERROR_LIBC);
 		free(cntx);
 		return NULL;
 	}
@@ -122,67 +118,43 @@ void jx_free(jx_cntx * cntx)
 	free(cntx);
 }
 
-void jx_set_error(jx_error error, ...)
+void jx_set_error(jx_cntx * cntx, jx_error error, ...)
 {
 	va_list ap;
 
-	jx_err = error;
+	if (cntx == NULL) {
+		return;
+	}
+
+	cntx->error = error;
 
 	if (error == JX_ERROR_LIBC) {
-		snprintf(jx_error_message, JX_ERROR_MESSAGE_MAX_SIZE, jx_error_messages[error],
+		snprintf(cntx->error_msg, JX_ERROR_BUF_MAX_SIZE, jx_error_messages[error],
 			errno, strerror(errno));
 	}
 	else {
 		va_start(ap, error);
-		vsnprintf(jx_error_message, JX_ERROR_MESSAGE_MAX_SIZE, jx_error_messages[error], ap);
+		vsnprintf(cntx->error_msg, JX_ERROR_BUF_MAX_SIZE, jx_error_messages[error], ap);
 		va_end(ap);
 	}
 }
 
-void jx_set_syntax_error(jx_cntx * cntx, jx_error error, ...)
-{
-	va_list ap;
-
-	if (cntx == NULL) {
-		return;
-	}
-
-	jx_err = error;
-
-	va_start(ap, error);
-	vsnprintf(jx_error_message, JX_ERROR_MESSAGE_MAX_SIZE, jx_error_messages[error], ap);
-	va_end(ap);
-
-	cntx->syntax_errors = true;
-}
-
-jx_error jx_get_error()
-{
-	return jx_err;
-}
-
-const char * const jx_get_error_message()
-{
-	return jx_error_message;	
-}
-
-void jx_illegal_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
+jx_error jx_get_error(jx_cntx * cntx)
 {
 	if (cntx == NULL) {
-		return;
+		return JX_ERROR_INVALID_CONTEXT;
 	}
 
-	if (src[pos] < 0x20) {
-		jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "control character");
-	}
-	else {
-		char token[2];
+	return cntx->error;
+}
 
-		token[0] = src[pos];
-		token[1] = '\0';
-
-		jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, token);
+const char * const jx_get_error_message(jx_cntx * cntx)
+{
+	if (cntx == NULL) {
+		return jx_error_messages[JX_ERROR_INVALID_CONTEXT];
 	}
+
+	return cntx->error_msg;	
 }
 
 jx_frame * jx_top(jx_cntx * cntx)
@@ -211,7 +183,7 @@ bool jx_push_mode(jx_cntx * cntx, jx_mode mode)
 	}
 
 	if ((frame = calloc(1, sizeof(jx_frame))) == NULL) {
-		jx_set_error(JX_ERROR_LIBC);
+		jx_set_error(cntx, JX_ERROR_LIBC);
 		return false;
 	}
 
@@ -341,7 +313,6 @@ jx_value * jx_get_return(jx_cntx * cntx)
 long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 {
 	if (cntx == NULL) {
-		jx_set_error(JX_ERROR_INVALID_CONTEXT);
 		return -1;
 	}
 
@@ -405,6 +376,25 @@ bool jx_start_token(jx_token_type token_type)
 	}
 }
 
+void jx_illegal_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
+{
+	if (cntx == NULL) {
+		return;
+	}
+
+	if (src[pos] < 0x20) {
+		jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "control character");
+	}
+	else {
+		char token[2];
+
+		token[0] = src[pos];
+		token[1] = '\0';
+
+		jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, token);
+	}
+}
+
 int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 {
 	jx_value * ret;
@@ -436,7 +426,7 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	 * ----------------------------------------------------------------------*/
 	if (token_type == JX_TOKEN_ARRAY_SEPARATOR) {
 		if (jx_get_state(cntx) != JX_ARRAY_STATE_NEW_MEMBER) {
-			jx_set_syntax_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col, ",");
+			jx_set_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col, ",");
 			return -1;
 		}
 
@@ -450,7 +440,7 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		jx_value * array;
 
 		if (jx_get_state(cntx) == JX_ARRAY_STATE_SEPARATOR) {
-			jx_set_syntax_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col, ",");
+			jx_set_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col, ",");
 			return -1;
 		}
 
@@ -475,7 +465,7 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		}
 
 		if (jx_get_state(cntx) == JX_ARRAY_STATE_NEW_MEMBER) {
-			jx_set_syntax_error(cntx, JX_ERROR_EXPECTED_TOKEN, cntx->line, cntx->col, ",");
+			jx_set_error(cntx, JX_ERROR_EXPECTED_TOKEN, cntx->line, cntx->col, ",");
 			return -1;
 		}
 	}
@@ -503,7 +493,7 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
 
 		if (c == '-' || c == '+') {
 			if (!(state & JX_NUM_ACCEPT_SIGN)) {
-				jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 					"illegal position for sign character in number");
 				return -1;
 			}
@@ -512,7 +502,7 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		}
 		else if (c >= '0' && c <= '9') {
 			if (!(state & JX_NUM_ACCEPT_DIGITS)) {
-				jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 					"invalid number");
 				return -1;
 			}
@@ -534,7 +524,7 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		}
 		else if (c == '.') {
 			if (!(state & JX_NUM_ACCEPT_DEC_PT)) {
-				jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 					"illegal position for decimal point in number");
 				return -1;
 			}
@@ -544,7 +534,7 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		}
 		else if (c == 'e' || c == 'E') {
 			if (!(state & JX_NUM_ACCEPT_EXP)) {
-				jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 					"illegal position for exponent in number");
 				return -1;
 			}
@@ -558,7 +548,7 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		}
 
 		if (jx_buf_pos == JX_BUF_SIZE - 1) {
-			jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+			jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 				"number too large");
 			return -1;
 		}
@@ -570,14 +560,23 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
 
 	if (symbol_end) {
 		if (state & JX_NUM_IS_VALID) {
+			jx_value * number;
+
 			jx_buf[jx_buf_pos] = '\0';
 
 			jx_buf_pos = 0;
 
-			frame->value = jxv_number_new(strtod(jx_buf, NULL));
+			number = jxv_number_new(strtod(jx_buf, NULL));
+
+			if (number == NULL) {
+				jx_set_error(cntx, JX_ERROR_LIBC);
+				return -1;
+			}
+
+			frame->value = number;
 		}
 		else {
-			jx_set_syntax_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+			jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 				"invalid number");
 			return -1;
 		}
@@ -588,7 +587,7 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	return pos;
 }
 
-int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
+int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 {
 	long pos;
 	long end_pos;
@@ -597,16 +596,17 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 	jx_token_type token_type;
 
 	if (cntx == NULL) {
-		jx_set_error(JX_ERROR_INVALID_CONTEXT);
 		return -1;
 	}
 
-	if (cntx->syntax_errors) {
+	if (cntx->error != JX_ERROR_NONE) {
 		return -1;
 	}
 
 	if (jx_get_mode(cntx) == JX_MODE_UNDEFINED) {
-		jx_push_mode(cntx, JX_MODE_START);
+		if (!jx_push_mode(cntx, JX_MODE_START)) {
+			return -1;
+		}
 	}
 
 	pos = 0;
@@ -652,7 +652,7 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 			continue;
 		}
 		else if (mode == JX_MODE_DONE) {
-			jx_set_syntax_error(cntx, JX_ERROR_TRAILING_CHARS, cntx->line, cntx->col, src[pos]);
+			jx_set_error(cntx, JX_ERROR_TRAILING_CHARS, cntx->line, cntx->col, src[pos]);
 			return -1;
 		}
 
@@ -664,7 +664,7 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 		}
 
 		if (cntx->depth == 0 && token_type != JX_TOKEN_ARRAY_BEGIN) {
-			jx_set_syntax_error(cntx, JX_ERROR_INVALID_ROOT, cntx->line, cntx->col);
+			jx_set_error(cntx, JX_ERROR_INVALID_ROOT, cntx->line, cntx->col);
 			return -1;
 		}
 		
@@ -674,6 +674,7 @@ int jx_parse(jx_cntx * cntx, const char * src, long n_bytes)
 			array = jxa_new(JX_DEFAULT_ARRAY_SIZE);
 
 			if (array == NULL) {
+				jx_set_error(cntx, JX_ERROR_LIBC);
 				return -1;
 			}
 
@@ -710,16 +711,15 @@ jx_value * jx_get_result(jx_cntx * cntx)
 	jx_value * ret;
 
 	if (cntx == NULL) {
-		jx_set_error(JX_ERROR_INVALID_CONTEXT);
 		return NULL;
 	}
 
-	if (cntx->syntax_errors) {
+	if (cntx->error != JX_ERROR_NONE) {
 		return NULL;
 	}
 
 	if (jx_get_mode(cntx) != JX_MODE_DONE) {
-		jx_set_syntax_error(cntx, JX_ERROR_INCOMPLETE_OBJECT, cntx->line, cntx->col);
+		jx_set_error(cntx, JX_ERROR_INCOMPLETE_OBJECT, cntx->line, cntx->col);
 		return NULL;
 	}
 

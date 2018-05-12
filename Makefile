@@ -30,7 +30,7 @@ bin/jxutil.a: bin/ bin/jx_util.o bin/jx_value.o
 bin/jx_util.o: bin/ src/jx_util.c src/jx_util.h src/jx_value.h
 	cc $(CFLAGS) -c src/jx_util.c -o bin/jx_util.o
 
-bin/jx_value.o: bin/ src/jx_value.c src/jx_util.h src/jx_value.h
+bin/jx_value.o: bin/ src/jx_value.c src/jx_value.h
 	cc $(CFLAGS) -c src/jx_value.c -o bin/jx_value.o
 
 tests/bin/jx_tests.o: tests/bin tests/jx_tests.c src/jx_util.h src/jx_value.h
