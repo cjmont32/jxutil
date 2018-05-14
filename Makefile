@@ -33,7 +33,7 @@ bin/jx_util.o: bin/ src/jx_util.c src/jx_util.h src/jx_value.h
 bin/jx_value.o: bin/ src/jx_value.c src/jx_value.h
 	cc $(CFLAGS) -c src/jx_value.c -o bin/jx_value.o
 
-tests/bin/jx_tests.o: tests/bin tests/jx_tests.c src/jx_util.h src/jx_value.h
+tests/bin/jx_tests.o: tests/bin/ tests/jx_tests.c src/jx_util.h src/jx_value.h
 	cc $(CFLAGS) -c tests/jx_tests.c -o tests/bin/jx_tests.o
 
 tests/bin/jx_tests: tests/bin/jx_tests.o bin/jxutil.a
