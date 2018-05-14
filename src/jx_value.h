@@ -37,6 +37,7 @@ typedef enum
 	JX_TYPE_UNDEF,
 	JX_TYPE_ARRAY,
 	JX_TYPE_NUMBER,
+	JX_TYPE_STRING,
 	JX_TYPE_PTR
 } jx_type;
 
@@ -64,6 +65,12 @@ jx_value * jxa_pop(jx_value * array);
 jx_value * jxa_top(jx_value * array);
 bool jxa_push_number(jx_value * array, double num);
 double jxa_get_number(jx_value * arr, size_t i);
-jx_value * jxv_number_new(double num);
 bool jxa_push_ptr(jx_value * array, void * ptr);
+jx_value * jxv_number_new(double num);
+jx_value * jxs_new(const char * src);
+char * jxs_get_str(jx_value * str);
+bool jxs_append_str(jx_value * dst, char * src);
+bool jxs_append_fmt(jx_value * dst, char * fmt, ...);
+bool jxs_append_chr(jx_value * dst, char c);
+char * jxs_get_str(jx_value * str);
 void jxv_free(jx_value * value);

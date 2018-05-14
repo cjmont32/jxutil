@@ -29,6 +29,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+
 #include <jx_value.h>
 
 jx_type jxv_get_type(jx_value * value)
@@ -177,19 +181,6 @@ double jxa_get_number(jx_value * array, size_t i)
 	return value->v.vf;
 }
 
-jx_value * jxv_number_new(double num)
-{
-	jx_value * value;
-
-	if ((value = jxv_new(JX_TYPE_NUMBER)) == NULL) {
-		return NULL;
-	}
-
-	value->v.vf = num;
-
-	return value;
-}
-
 bool jxa_push_ptr(jx_value * array, void * ptr)
 {
 	jx_value * value;
@@ -212,6 +203,160 @@ bool jxa_push_ptr(jx_value * array, void * ptr)
 	return true;
 }
 
+jx_value * jxv_number_new(double num)
+{
+	jx_value * value;
+
+	if ((value = jxv_new(JX_TYPE_NUMBER)) == NULL) {
+		return NULL;
+	}
+
+	value->v.vf = num;
+
+	return value;
+}
+
+jx_value * jxs_new(const char * src)
+{
+	jx_value * str;
+
+	if ((str = jxv_new(JX_TYPE_STRING)) == NULL) {
+		return NULL;
+	}
+
+	if (src == NULL) {
+		str->length = 0;
+	}
+	else {
+		str->length = strlen(src);
+	}
+
+	str->size = 16;
+
+	while (str->size < str->length + 1) {
+		str->size *= 2;
+	}
+
+	if ((str->v.vp = malloc(sizeof(char) * str->size)) == NULL) {
+		jxv_free(str);
+		return NULL;
+	}
+
+	if (src == NULL) {
+		((char *)str->v.vp)[0] = '\0';
+	}
+	else {
+		strcpy(str->v.vp, src);
+	}
+
+	return str;
+}
+
+char * jxs_get_str(jx_value * str)
+{
+	if (str == NULL || str->type != JX_TYPE_STRING) {
+		return NULL;
+	}
+
+	return str->v.vp;
+}
+
+bool jxs_resize(jx_value * str, size_t size)
+{
+	size_t new_size;
+	char * new_str;
+
+	if (str->size >= size) {
+		return false;
+	}
+
+	new_size = str->size;
+
+	while (new_size < size) {
+		new_size *= 2;
+	}
+
+	new_str = realloc(str->v.vp, new_size);
+
+	if (new_str == NULL) {
+		return false;
+	}
+
+	str->v.vp = new_str;
+	str->size = new_size;
+
+	return true;
+}
+
+bool jxs_append_str(jx_value * dst, char * src)
+{
+	int new_length;
+
+	if (dst == NULL || dst->type != JX_TYPE_STRING) {
+		return false;
+	}
+
+	new_length = dst->length + strlen(src);
+
+	if (dst->size < new_length + 1) {
+		if (!jxs_resize(dst, new_length + 1)) {
+			return false;
+		}
+	}
+
+	strcat(dst->v.vp, src);
+
+	dst->length = new_length;
+
+	return true;
+}
+
+bool jxs_append_fmt(jx_value * dst, char * fmt, ...)
+{
+	int new_length;
+	va_list ap;
+
+	if (dst == NULL || dst->type != JX_TYPE_STRING) {
+		return false;
+	}
+
+	va_start(ap, fmt);
+	new_length = dst->length + vsnprintf(NULL, 0, fmt, ap);
+	va_end(ap);
+
+	if (dst->size < new_length + 1) {
+		if (!jxs_resize(dst, new_length + 1)) {
+			return false;
+		}
+	} 
+
+	va_start(ap, fmt);
+	vsprintf(dst->v.vp + dst->length, fmt, ap);
+	va_end(ap);
+
+	dst->length = new_length;
+
+	return true;
+}
+
+bool jxs_append_chr(jx_value * dst, char c)
+{
+	if (dst == NULL || dst->type != JX_TYPE_STRING) {
+		return false;
+	}
+
+	if (dst->size < dst->length + 2) {
+		if (!jxs_resize(dst, dst->length + 2)) {
+			return false;
+		}
+	}
+
+	((char*)dst->v.vp)[dst->length++] = c;
+	((char*)dst->v.vp)[dst->length] = '\0';
+
+	return true;
+}
+
 void jxv_free(jx_value * value)
 {
 	jx_type type;
@@ -222,7 +367,7 @@ void jxv_free(jx_value * value)
 
 	type = jxv_get_type(value);
 
-	if (type == JX_TYPE_PTR) {
+	if (type == JX_TYPE_STRING || type == JX_TYPE_PTR) {
 		if (value->v.vp != NULL) {
 			free(value->v.vp);
 		}
