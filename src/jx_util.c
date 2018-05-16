@@ -52,6 +52,10 @@
 #define JX_NUM_HAS_EXP         (1 << 7)
 #define JX_NUM_DEFAULT         JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS
 
+#define JX_STRING_STATE_ESCAPE  (1 << 0)
+#define JX_STRING_STATE_UNICODE (1 << 1)
+#define JX_STRING_STATE_END     (1 << 2)
+
 #define JX_DEFAULT_OBJECT_STACK_SIZE 8
 #define JX_DEFAULT_ARRAY_SIZE 8
 #define JX_BUF_SIZE 26
@@ -360,6 +364,9 @@ jx_token_type jx_get_token_type(const char * src, long pos, long end_pos)
 	else if (src[pos] == '-' || (src[pos] >= '0' && src[pos] <= '9')) {
 		return JX_TOKEN_NUMBER;
 	}
+	else if (src[pos] == '"') {
+		return JX_TOKEN_STRING_DELIMITER;
+	}
 	else {
 		return JX_TOKEN_NONE;
 	}
@@ -370,6 +377,7 @@ bool jx_start_token(jx_token_type token_type)
 	switch (token_type) {
 		case JX_TOKEN_ARRAY_BEGIN:
 		case JX_TOKEN_NUMBER:
+		case JX_TOKEN_STRING_DELIMITER:
 			return true;
 		default:
 			return false;
@@ -587,6 +595,102 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	return pos;
 }
 
+int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+{
+	jx_frame * frame;
+	jx_value * str;
+
+	unsigned char * buf;
+
+	jx_state state;
+
+	if ((frame = jx_top(cntx)) == NULL) {
+		return -1;
+	}
+
+	buf = (unsigned char *)src;
+	state = frame->state;
+	str = frame->value;
+
+	while (pos <= end_pos) {
+		if (state & JX_STRING_STATE_ESCAPE) {
+			switch (buf[pos]) {
+				case '"':
+				case '\\':
+				case '/':
+					jxs_append_chr(str, buf[pos]);
+					break;
+				case 'b':
+					jxs_append_chr(str, '\b');
+					break;
+				case 'f':
+					jxs_append_chr(str, '\f');
+					break;
+				case 'n':
+					jxs_append_chr(str, '\n');
+					break;
+				case 'r':
+					jxs_append_chr(str, '\r');
+					break;
+				case 't':
+					jxs_append_chr(str, '\t');
+					break;
+				case 'u':
+					break;
+				default:
+					jx_set_error(
+						cntx,
+						JX_ERROR_ILLEGAL_TOKEN,
+						cntx->line,
+						cntx->col,
+						"unrecognized escape sequence"
+					);
+					return -1;
+			}
+
+			state &= ~JX_STRING_STATE_ESCAPE;
+		}
+		else {
+			if (buf[pos] == '\\') {
+				state |= JX_STRING_STATE_ESCAPE;
+			}
+			else if (buf[pos] == '"') {
+				state = JX_STRING_STATE_END;
+			}
+			else {
+				if (buf[pos] >= 0x20) {
+					jxs_append_chr(str, buf[pos]);
+				}
+				else {
+					jx_set_error(
+						cntx,
+						JX_ERROR_ILLEGAL_TOKEN,
+						cntx->line,
+						cntx->col,
+						"control character in string"
+					);
+					return -1;
+				}
+			}
+		}
+
+		pos++;
+		cntx->col++;
+
+		if (state == JX_STRING_STATE_END) {
+			if (done != NULL) {
+				*done = true;
+			}
+
+			break;
+		}
+	}
+
+	frame->state = state;
+
+	return pos;
+}
+
 int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 {
 	long pos;
@@ -651,6 +755,27 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 
 			continue;
 		}
+		else if (mode == JX_MODE_PARSE_STRING) {
+			bool done = false;
+
+			pos = jx_parse_string(cntx, src, pos, end_pos, &done);
+
+			if (pos == -1) {
+				return -1;
+			}
+
+			if (done) {
+				jx_value * str = jx_get_value(cntx);
+
+				jx_pop_mode(cntx);
+				jx_set_return(cntx, str);
+
+				cntx->inside_token = false;
+			}
+
+			continue;
+
+		}
 		else if (mode == JX_MODE_DONE) {
 			jx_set_error(cntx, JX_ERROR_TRAILING_CHARS, cntx->line, cntx->col, src[pos]);
 			return -1;
@@ -697,9 +822,33 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 				return -1;
 			}
 
+			jx_buf_pos = 0;
+
 			cntx->inside_token = true;
 
 			jx_set_state(cntx, JX_NUM_DEFAULT);
+		}
+		else if (token_type == JX_TOKEN_STRING_DELIMITER) {
+			jx_value * str;
+
+			str = jxs_new(NULL);
+
+			if (str == NULL) {
+				jx_set_error(cntx, JX_ERROR_LIBC);
+				return -1;
+			}
+
+			if (!jx_push_mode(cntx, JX_MODE_PARSE_STRING)) {
+				jxv_free(str);
+				return -1;
+			}
+
+			jx_set_value(cntx, str);
+
+			pos++;
+
+			cntx->col++;
+			cntx->inside_token = true;
 		}
 	}
 

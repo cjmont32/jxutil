@@ -60,6 +60,14 @@ struct json_test
 	{ false, "[ 99, 3, $, 45 ]" },
 	{ false, "[ 33, 44.#2, 70 ]" },
 	{ false, "[ [ 9, 3, 2], [ 1.5, 99.9999, 0.9999 ], [ -40 ], -99.5e-4, [[[[[[ 25, 35, 99, foo, 76 ]]]]]] ]"},
+
+	{ true, "[ \"This is a test string.\", \"π = 3.15159...\", \"\\\\\", \"\\\"\", \"This is a string\\nwith multiple\\nlines.\" ]" },
+	{ true, "[ \"]\", \"Another string.\", 0 ] "},
+	{ true, "[ \"]]]][[[,,\\\\,,\\\"\", \"[1, 2, 3, 4, 5, 6, 7]\", \"[\", \"[1,2,3,\" ]" },
+
+	{ false, "[ \"\n\" ] " },
+	{ false, "[\"]" },
+	{ false, "[\"]\"" }
 };
 
 void sum_func(jx_value * number, void * ptr)
@@ -271,6 +279,24 @@ void print_usage()
 		"   -p              Halt execution before stopping.\n"
 		"   -v              Enable verbose output.\n"
 	);
+}
+
+void print_elements(jx_value * val, void * ptr)
+{
+	jx_type type;
+
+	if (val == NULL) {
+		return;
+	}
+
+	type = jxv_get_type(val);
+
+	if (type == JX_TYPE_STRING) {
+		printf("\"%s\"\n", jxs_get_str(val));
+	}
+	else if (type == JX_TYPE_NUMBER) {
+		printf("[%g]\n", val->v.vf);
+	}
 }
 
 int main(int argc, char ** argv)
