@@ -403,10 +403,18 @@ void jx_illegal_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	}
 }
 
-int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
+long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * next_token)
 {
 	jx_value * ret;
 	jx_token_type token_type;
+
+	if (cntx == NULL || src == NULL || next_token == NULL) {
+		return -1;
+	}
+
+	if (pos < 0) {
+		return -1;
+	}
 
 	ret = jx_get_return(cntx);
 
@@ -414,6 +422,7 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		jx_value * array = jx_get_value(cntx);
 
 		if (!jxa_push(array, ret)) {
+			jx_set_error(cntx, JX_ERROR_LIBC);
 			return -1;
 		}
 
@@ -443,6 +452,8 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		cntx->col++;
 
 		jx_set_state(cntx, JX_ARRAY_STATE_SEPARATOR);
+
+		*next_token = true;
 	}
 	else if (token_type == JX_TOKEN_ARRAY_END) {
 		jx_value * array;
@@ -465,6 +476,8 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		if (jx_get_mode(cntx) == JX_MODE_START) {
 			jx_set_mode(cntx, JX_MODE_DONE);
 		}
+
+		*next_token = true;
 	}
 	else {
 		if (token_type == JX_TOKEN_NONE) {
@@ -476,12 +489,14 @@ int jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos)
 			jx_set_error(cntx, JX_ERROR_EXPECTED_TOKEN, cntx->line, cntx->col, ",");
 			return -1;
 		}
+
+		*next_token = false;
 	}
 
 	return pos;
 }
 
-int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
+long jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
 {
 	jx_frame * frame;
 	jx_state state;
@@ -489,6 +504,14 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	char c;
 
 	bool symbol_end = false;
+
+	if (cntx == NULL || src == NULL || done == NULL) {
+		return -1;
+	}
+
+	if (pos < 0) {
+		return -1;
+	}
 
 	if ((frame = jx_top(cntx)) == NULL) {
 		return -1;
@@ -582,6 +605,10 @@ int jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos)
 			}
 
 			frame->value = number;
+
+			if (done != NULL) {
+				*done = true;
+			}
 		}
 		else {
 			jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
@@ -603,6 +630,14 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 	unsigned char * buf;
 
 	jx_state state;
+
+	if (cntx == NULL || src == NULL || done == NULL) {
+		return -1;
+	}
+
+	if (pos < 0) {
+		return -1;
+	}
 
 	if ((frame = jx_top(cntx)) == NULL) {
 		return -1;
@@ -678,10 +713,7 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 		cntx->col++;
 
 		if (state == JX_STRING_STATE_END) {
-			if (done != NULL) {
-				*done = true;
-			}
-
+			*done = true;
 			break;
 		}
 	}
@@ -699,7 +731,7 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 	jx_mode mode;
 	jx_token_type token_type;
 
-	if (cntx == NULL) {
+	if (cntx == NULL || src == NULL) {
 		return -1;
 	}
 
@@ -726,27 +758,30 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 		mode = jx_get_mode(cntx);
 
 		if (mode == JX_MODE_PARSE_ARRAY) {
-			long new_pos = jx_parse_array(cntx, src, pos, end_pos);
+			bool next_token = false;
 
-			if (new_pos == -1) {
-				return -1;
-			}
-
-			if (pos != new_pos) {
-				pos = new_pos;
-				continue;
-			}
-		}
-		else if (mode == JX_MODE_PARSE_NUMBER) {
-			jx_value * number;
-
-			pos = jx_parse_number(cntx, src, pos, end_pos);
+			pos = jx_parse_array(cntx, src, pos, end_pos, &next_token);
 
 			if (pos == -1) {
 				return -1;
 			}
 
-			if ((number = jx_get_value(cntx)) != NULL) {
+			if (next_token) {
+				continue;
+			}
+		}
+		else if (mode == JX_MODE_PARSE_NUMBER) {
+			bool done = false;
+
+			pos = jx_parse_number(cntx, src, pos, end_pos, &done);
+
+			if (pos == -1) {
+				return -1;
+			}
+
+			if (done) {
+				jx_value * number = jx_get_value(cntx);
+
 				jx_pop_mode(cntx);
 				jx_set_return(cntx, number);
 
@@ -816,9 +851,7 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 			cntx->depth++;
 		}
 		else if (token_type == JX_TOKEN_NUMBER) {
-			bool success = jx_push_mode(cntx, JX_MODE_PARSE_NUMBER);
-
-			if (!success) {
+			if (!jx_push_mode(cntx, JX_MODE_PARSE_NUMBER)) {
 				return -1;
 			}
 
