@@ -7,8 +7,8 @@ librel: rel/ bin/jxutil.a
 	cp src/jx_value.h rel/jx_value.h
 	cp bin/jxutil.a rel/jxutil.a
 
-run_tests: tests/bin/jx_tests
-	@tests/bin/jx_tests
+run_tests: jx_tests
+	@./jx_tests
 
 clean:
 	@rm -rf bin/
@@ -38,3 +38,6 @@ tests/bin/jx_tests.o: tests/bin/ tests/jx_tests.c src/jx_util.h src/jx_value.h
 
 tests/bin/jx_tests: tests/bin/jx_tests.o bin/jxutil.a
 	cc $(CFLAGS) tests/bin/jx_tests.o bin/jxutil.a -o tests/bin/jx_tests
+
+jx_tests: tests/bin/jx_tests
+	ln -sf tests/bin/jx_tests jx_tests
