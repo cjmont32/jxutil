@@ -33,6 +33,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#define JX_TOKEN_BUF_SIZE     26
 #define JX_ERROR_BUF_MAX_SIZE 2048
 
 typedef int jx_state;
@@ -88,6 +89,9 @@ typedef struct
 	size_t depth;
 
 	jx_value * object_stack;
+
+	char tok_buf[JX_TOKEN_BUF_SIZE];
+	int tok_buf_pos;
 
 	bool inside_token;
 

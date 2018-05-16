@@ -38,30 +38,26 @@
 
 #include <jx_util.h>
 
-#define JX_ARRAY_STATE_DEFAULT 0
-#define JX_ARRAY_STATE_NEW_MEMBER 1
-#define JX_ARRAY_STATE_SEPARATOR 2
+#define JX_ARRAY_STATE_DEFAULT       0
+#define JX_ARRAY_STATE_NEW_MEMBER    1
+#define JX_ARRAY_STATE_SEPARATOR     2
 
-#define JX_NUM_IS_VALID        (1 << 0)
-#define JX_NUM_ACCEPT_SIGN     (1 << 1)
-#define JX_NUM_ACCEPT_DIGITS   (1 << 2)
-#define JX_NUM_ACCEPT_DEC_PT   (1 << 3)
-#define JX_NUM_ACCEPT_EXP      (1 << 4)
-#define JX_NUM_HAS_DIGITS      (1 << 5)
-#define JX_NUM_HAS_DEC_PT      (1 << 6)
-#define JX_NUM_HAS_EXP         (1 << 7)
-#define JX_NUM_DEFAULT         JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS
+#define JX_NUM_IS_VALID              (1 << 0)
+#define JX_NUM_ACCEPT_SIGN           (1 << 1)
+#define JX_NUM_ACCEPT_DIGITS         (1 << 2)
+#define JX_NUM_ACCEPT_DEC_PT         (1 << 3)
+#define JX_NUM_ACCEPT_EXP            (1 << 4)
+#define JX_NUM_HAS_DIGITS            (1 << 5)
+#define JX_NUM_HAS_DEC_PT            (1 << 6)
+#define JX_NUM_HAS_EXP               (1 << 7)
+#define JX_NUM_DEFAULT               JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS
 
-#define JX_STRING_STATE_ESCAPE  (1 << 0)
-#define JX_STRING_STATE_UNICODE (1 << 1)
-#define JX_STRING_STATE_END     (1 << 2)
+#define JX_STRING_STATE_ESCAPE       (1 << 0)
+#define JX_STRING_STATE_UNICODE      (1 << 1)
+#define JX_STRING_STATE_END          (1 << 2)
 
 #define JX_DEFAULT_OBJECT_STACK_SIZE 8
-#define JX_DEFAULT_ARRAY_SIZE 8
-#define JX_BUF_SIZE 26
-
-static char jx_buf[JX_BUF_SIZE];
-static int jx_buf_pos;
+#define JX_DEFAULT_ARRAY_SIZE        8
 
 static const char * const jx_error_messages[JX_ERROR_GUARD] =
 {
@@ -578,13 +574,13 @@ long jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 			break;
 		}
 
-		if (jx_buf_pos == JX_BUF_SIZE - 1) {
+		if (cntx->tok_buf_pos == JX_TOKEN_BUF_SIZE - 1) {
 			jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 				"number too large");
 			return -1;
 		}
 
-		jx_buf[jx_buf_pos++] = src[pos++];
+		cntx->tok_buf[cntx->tok_buf_pos++] = src[pos++];
 
 		cntx->col++;
 	}
@@ -593,11 +589,10 @@ long jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 		if (state & JX_NUM_IS_VALID) {
 			jx_value * number;
 
-			jx_buf[jx_buf_pos] = '\0';
+			cntx->tok_buf[cntx->tok_buf_pos] = '\0';
+			cntx->tok_buf_pos = 0;
 
-			jx_buf_pos = 0;
-
-			number = jxv_number_new(strtod(jx_buf, NULL));
+			number = jxv_number_new(strtod(cntx->tok_buf, NULL));
 
 			if (number == NULL) {
 				jx_set_error(cntx, JX_ERROR_LIBC);
@@ -606,9 +601,7 @@ long jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 
 			frame->value = number;
 
-			if (done != NULL) {
-				*done = true;
-			}
+			*done = true;
 		}
 		else {
 			jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
@@ -854,8 +847,6 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 			if (!jx_push_mode(cntx, JX_MODE_PARSE_NUMBER)) {
 				return -1;
 			}
-
-			jx_buf_pos = 0;
 
 			cntx->inside_token = true;
 
