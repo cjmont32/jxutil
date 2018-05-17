@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <stdint.h>
 #include <stdarg.h>
 
 #include <jx_util.h>
@@ -52,9 +53,10 @@
 #define JX_NUM_HAS_EXP               (1 << 7)
 #define JX_NUM_DEFAULT               JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS
 
-#define JX_STRING_STATE_ESCAPE       (1 << 0)
-#define JX_STRING_STATE_UNICODE      (1 << 1)
-#define JX_STRING_STATE_END          (1 << 2)
+#define JX_STRING_ESCAPE             (1 << 0)
+#define JX_STRING_UNICODE            (1 << 1)
+#define JX_STRING_SURROGATE          (1 << 2)
+#define JX_STRING_END                (1 << 3)
 
 #define JX_DEFAULT_OBJECT_STACK_SIZE 8
 #define JX_DEFAULT_ARRAY_SIZE        8
@@ -308,6 +310,50 @@ jx_value * jx_get_return(jx_cntx * cntx)
 	}
 
 	return frame->return_value;
+}
+
+bool utf16_surrogate(uint16_t value)
+{
+	return value >= 0xD800 && value <= 0xDFFF;
+}
+
+bool utf16_high_surrogate(uint16_t value)
+{
+	return value >= 0xD800 && value <= 0xDBFF;
+}
+
+bool utf16_low_surrogate(uint16_t value)
+{
+	return value >= 0xDC00 && value <= 0xDFFF;
+}
+
+int utf16_decode(uint16_t pair[2])
+{
+	int code;
+
+	if (!utf16_surrogate(pair[0])) {
+		return pair[0];
+	}
+
+	if (!utf16_high_surrogate(pair[0])) {
+		return -1;
+	}
+
+	if (!utf16_low_surrogate(pair[1])) {
+		return -1;
+	}
+
+	code = (pair[0] - 0xD800) << 10;
+	code |= pair[1] - 0xDC00;
+	code += 0x10000;
+
+	return code;
+}
+
+bool unicode_to_utf8(char buf[5], int code)
+{
+	buf[0] = '\0';
+	return false;
 }
 
 long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
@@ -615,6 +661,123 @@ long jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 	return pos;
 }
 
+int jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+{
+	jx_state state;
+
+	if (cntx == NULL || src == NULL || done == NULL) {
+		return -1;
+	}	
+
+	if (pos < 0) {
+		return -1;
+	}
+
+	state = jx_get_state(cntx);
+
+	while (pos <= end_pos) {
+		int index = cntx->code_index;
+
+		if (src[pos] >= '0' && src[pos] <= '9') {
+			cntx->code[index] <<= 4;
+			cntx->code[index] |= (src[pos++] - '0');
+			cntx->shifts++;
+			cntx->col++;
+		}
+		else if (src[pos] >= 'a' && src[pos] <= 'f') {
+			cntx->code[index] <<= 4;
+			cntx->code[index] |= (src[pos++] - 'a') + 0xa;
+			cntx->shifts++;
+			cntx->col++;
+		}
+		else if (src[pos] >= 'A' && src[pos] <= 'F') {
+			cntx->code[index] <<= 4;
+			cntx->code[index] |= (src[pos++] - 'A') + 0xa;
+			cntx->shifts++;
+			cntx->col++;
+		}
+		else {
+			jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+				"illegal unicode escape sequence");
+
+			return -1;
+		}
+
+		if (cntx->shifts == 4) {
+			break;
+		}
+	}
+
+	if (cntx->shifts == 4) {
+		int code_point = -1;
+
+		if (state & JX_STRING_SURROGATE) {
+			/* Check to make sure that we have a low surrogate value,
+			 * and decode, otherwise return error. */
+			if (utf16_low_surrogate(cntx->code[1])) {
+				code_point = utf16_decode(cntx->code);
+				state &= ~JX_STRING_SURROGATE;
+				cntx->code_index = 0;
+			}
+			else {
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+					"illegal surrogate pair in unicode escape sequence");
+
+				return -1;
+			}
+		}
+		else {
+			/* Non-surrogates are single 16-bit numbers that
+			 * correspond one-to-one with characters in the BMP
+			 * (Basic Multilingual Plane) or (plane-0) */
+			if (!utf16_surrogate(cntx->code[0])) {
+				code_point = cntx->code[0];
+			}
+			else {
+			 	/* The first surrogate should always be the high surrogate,
+				 * and we must wait for the low surrogate before we can
+				 * decode. */
+				if (utf16_high_surrogate(cntx->code[0])) {
+					state |= JX_STRING_SURROGATE;
+					cntx->code_index = 1;
+				}
+				else {
+					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+						"illegal surrogate pair in unicode escape sequence");
+
+					return -1;
+				}
+			}
+		}
+
+		if (code_point != -1) {
+			if (code_point >= 0x20) {
+				char utf8_buf[5];
+
+				jx_value * str = jx_get_value(cntx);
+
+				unicode_to_utf8(utf8_buf, code_point);
+
+				jxs_append_str(str, utf8_buf);
+			}
+			else {
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+					"illegal control character in string");
+
+				return -1;
+			}
+		}
+
+		cntx->shifts = 0;
+
+		*done = true;
+	}
+
+	jx_set_state(cntx, state);
+
+	return pos;
+}
+
 int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
 {
 	jx_frame * frame;
@@ -623,6 +786,8 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 	unsigned char * buf;
 
 	jx_state state;
+
+	bool escape_done = false;
 
 	if (cntx == NULL || src == NULL || done == NULL) {
 		return -1;
@@ -641,7 +806,14 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 	str = frame->value;
 
 	while (pos <= end_pos) {
-		if (state & JX_STRING_STATE_ESCAPE) {
+		if (state & JX_STRING_ESCAPE) {
+			if (buf[pos] != 'u' && (state & JX_STRING_SURROGATE)) {
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+					"invalid unicode character in string");
+
+				return -1;
+			}
+
 			switch (buf[pos]) {
 				case '"':
 				case '\\':
@@ -664,39 +836,52 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 					jxs_append_chr(str, '\t');
 					break;
 				case 'u':
+					state |= JX_STRING_UNICODE;
 					break;
 				default:
-					jx_set_error(
-						cntx,
-						JX_ERROR_ILLEGAL_TOKEN,
-						cntx->line,
-						cntx->col,
-						"unrecognized escape sequence"
-					);
+					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+						"unrecognized escape sequence");
+
 					return -1;
 			}
 
-			state &= ~JX_STRING_STATE_ESCAPE;
+			state &= ~JX_STRING_ESCAPE;
+		}
+		else if (state & JX_STRING_UNICODE) {
+			pos = jx_parse_unicode_seq(cntx, src, pos, end_pos, &escape_done);
+
+			if (pos == -1) {
+				return -1;
+			}
+
+			if (escape_done) {
+				state &= ~JX_STRING_UNICODE;
+			}
+
+			return pos;
 		}
 		else {
-			if (buf[pos] == '\\') {
-				state |= JX_STRING_STATE_ESCAPE;
+			if (buf[pos] != '\\' && (state & JX_STRING_SURROGATE)) {
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+					"invalid unicode character in string");
+
+				return -1;
 			}
-			else if (buf[pos] == '"') {
-				state = JX_STRING_STATE_END;
+
+			if (buf[pos] == '\\') {
+				state |= JX_STRING_ESCAPE;
+			}
+			if (buf[pos] == '"') {
+				state = JX_STRING_END;
 			}
 			else {
 				if (buf[pos] >= 0x20) {
 					jxs_append_chr(str, buf[pos]);
 				}
 				else {
-					jx_set_error(
-						cntx,
-						JX_ERROR_ILLEGAL_TOKEN,
-						cntx->line,
-						cntx->col,
-						"control character in string"
-					);
+					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+						"control character in string");
+
 					return -1;
 				}
 			}
@@ -705,7 +890,7 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 		pos++;
 		cntx->col++;
 
-		if (state == JX_STRING_STATE_END) {
+		if (state == JX_STRING_END) {
 			*done = true;
 			break;
 		}

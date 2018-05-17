@@ -29,9 +29,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <jx_value.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+
+#include <jx_value.h>
 
 #define JX_TOKEN_BUF_SIZE     26
 #define JX_ERROR_BUF_MAX_SIZE 2048
@@ -89,6 +91,9 @@ typedef struct
 	size_t depth;
 
 	jx_value * object_stack;
+
+	uint16_t code[2];
+	int code_index, shifts;
 
 	char tok_buf[JX_TOKEN_BUF_SIZE];
 	int tok_buf_pos;
