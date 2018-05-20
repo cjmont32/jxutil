@@ -350,10 +350,84 @@ int utf16_decode(uint16_t pair[2])
 	return code;
 }
 
-bool unicode_to_utf8(char buf[5], int code)
+int utf8_length_for_value(int code_point)
 {
-	buf[0] = '\0';
-	return false;
+	if (code_point < 0) {
+		return -1;
+	}
+
+	if (code_point <= 0x7f) {
+		return 1;
+	}
+	else if (code_point <= 0x7ff) {
+		return 2;
+	}
+	else if (code_point <= 0xffff) {
+		return 3;
+	}
+	else if (code_point <= 0x10ffff) {
+		return 4;
+	}
+	else {
+		return -1;
+	}
+}
+
+bool unicode_to_utf8(char out[5], int code_point)
+{
+	int bytes, byte, bit_in, bit_out;
+
+	if (out == NULL) {
+		return false;
+	}
+
+	if ((bytes = utf8_length_for_value(code_point)) == -1) {
+		return false;
+	}
+
+	byte = 0;
+
+	if (bytes == 1) {
+		out[0] = code_point;
+		out[1] = '\0';
+		return true;
+	}
+	else if (bytes == 2) {
+		bit_in = 10;
+		bit_out = 4;
+
+		out[0] = 0xC0;
+	}
+	else if (bytes == 3) {
+		bit_in = 15;
+		bit_out = 3;
+
+		out[0] = 0xE0;
+	}
+	else {
+		bit_in = 20;
+		bit_out = 2;
+
+		out[0] = 0xF0;
+	}
+
+	while (bit_in >= 0) {
+		if (code_point & (1 << bit_in)) {
+			out[byte] |= (1 << bit_out);
+		}
+
+		bit_in--;
+		bit_out--;
+
+		if (bit_out < 0) {
+			out[++byte] = 0x80;
+			bit_out = 5;
+		}
+	}
+
+	out[bytes] = '\0';
+
+	return true;
 }
 
 long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
@@ -756,9 +830,15 @@ int jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_po
 
 				jx_value * str = jx_get_value(cntx);
 
-				unicode_to_utf8(utf8_buf, code_point);
+				if (unicode_to_utf8(utf8_buf, code_point)) {
+					jxs_append_str(str, utf8_buf);
+				}
+				else {
+					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+						"illegal character in string");
 
-				jxs_append_str(str, utf8_buf);
+					return -1;
+				}
 			}
 			else {
 				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
@@ -787,7 +867,7 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 
 	jx_state state;
 
-	bool escape_done = false;
+	bool escape_done;
 
 	if (cntx == NULL || src == NULL || done == NULL) {
 		return -1;
@@ -848,17 +928,23 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 			state &= ~JX_STRING_ESCAPE;
 		}
 		else if (state & JX_STRING_UNICODE) {
+			escape_done = false;
+
+			jx_set_state(cntx, state);
+
 			pos = jx_parse_unicode_seq(cntx, src, pos, end_pos, &escape_done);
 
 			if (pos == -1) {
 				return -1;
 			}
 
+			state = jx_get_state(cntx);
+
 			if (escape_done) {
 				state &= ~JX_STRING_UNICODE;
 			}
 
-			return pos;
+			continue;
 		}
 		else {
 			if (buf[pos] != '\\' && (state & JX_STRING_SURROGATE)) {
@@ -871,7 +957,7 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 			if (buf[pos] == '\\') {
 				state |= JX_STRING_ESCAPE;
 			}
-			if (buf[pos] == '"') {
+			else if (buf[pos] == '"') {
 				state = JX_STRING_END;
 			}
 			else {

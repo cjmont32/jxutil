@@ -3,6 +3,7 @@
  */
 
 #include <stdio.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -61,7 +62,7 @@ struct json_test
 	{ false, "[ 33, 44.#2, 70 ]" },
 	{ false, "[ [ 9, 3, 2], [ 1.5, 99.9999, 0.9999 ], [ -40 ], -99.5e-4, [[[[[[ 25, 35, 99, foo, 76 ]]]]]] ]" },
 
-	{ true, "[ \"This is a test string.\", \"π = 3.15159...\", \"\\\\\", \"\\\"\", \"This is a string\\nwith multiple\\nlines.\" ]" },
+	{ true, "[ \"\", \"This is a test string.\", \"π = 3.15159...\", \"\\\\\", \"\\\"\", \"This is a string\\nwith multiple\\nlines.\" ]" },
 	{ true, "[ \"]\", \"Another string.\", 0 ] "},
 	{ true, "[ \"]]]][[[,,\\\\,,\\\"\", \"[1, 2, 3, 4, 5, 6, 7]\", \"[\", \"[1,2,3,\" ]" },
 
@@ -176,6 +177,108 @@ bool execute_muli_part_parse_test()
 	return true;
 }
 
+bool strings_test()
+{
+	jx_cntx * cntx;
+	jx_value * arr;
+
+	int fd, bytes_read, i, max;
+
+	bool success;
+
+	char buf[32];
+
+	const char * string_tests[] = {
+		"",
+		",{\"foo\":{}}],[[[\\,,,]",
+
+		"Arrival,2016,\"Denis Villeneuve\"\n"
+		"Inception,2010,\"Christopher Nolan\"\n"
+		"Interstellar,2014,\"Christopher Nolan\"\n"
+		"\"Rogue One\",2016,\"Gareth Edwards\"",
+
+		"\xcf\x80 = 3.14159....",
+		"\xe2\x82\xac\x31\x30\x30 is approximately $120",
+		"Any unicode character should be fine, e.g. [\xf0\x90\x90\xb7].",
+		"Would you prefer \xe2\x98\x95 or \xf0\x9f\x8d\xba or \xf0\x9f\x8d\xb7?"
+	};
+
+	printf("Testing parsing array of strings:\n");
+
+	fd = open("tests/json/strings.json", O_RDONLY);
+
+	if (fd == -1 && errno == ENOENT) {
+		printf("Error: %s\n", strerror(errno));
+		printf("Hint: Try again from the root of the project tree.\n");
+		return false;
+	}
+
+	if (fd == -1) {
+		printf("%s\n", strerror(errno));
+		return false;
+	}
+
+	if ((cntx = jx_new()) == NULL) {
+		fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
+		return false;
+	}
+
+	while ((bytes_read = read(fd, buf, 32)) > 0) {
+		if (jx_parse_json(cntx, buf, bytes_read) == -1) {
+			break;
+		}
+	}
+
+	close(fd);
+
+	if (bytes_read == -1) {
+		printf("%s\n", strerror(errno));
+		jx_free(cntx);
+		return false;
+	}
+
+	if ((arr = jx_get_result(cntx)) == NULL) {
+		fprintf(stderr, "%s\n", jx_get_error_message(cntx));
+		jx_free(cntx);
+		return false;
+	}
+
+	max = sizeof(string_tests) / sizeof(char *) - 1;
+	success = true;
+
+	for (i = 0; i < jxa_get_length(arr); i++) {
+		char * str;
+
+		str = jxs_get_str(jxa_get(arr, i));
+
+		if (str == NULL) {
+			fprintf(stderr, "Error: Non-string type found in array.\n");
+			success = false;
+			goto cleanup;
+		}
+
+		if (i > max) {
+			fprintf(stderr, "Errno: string at index %d not found in test strings [%s].\n", i, str);
+			success = false;
+			goto cleanup;
+		}
+
+		if (strcmp(string_tests[i], str) != 0) {
+			fprintf(stderr, "Error: Strings didn't match [%s:%s].\n", string_tests[i], str);
+			success = false;
+			goto cleanup;
+		}
+	}
+
+	printf("All strings passed\n");
+
+cleanup:
+	jxv_free(arr);
+	jx_free(cntx);
+
+	return success;
+}
+
 bool execute_simple_tests()
 {
 	int i;
@@ -234,6 +337,12 @@ bool execute_simple_tests()
 
 bool run_tests()
 {
+	if (!strings_test()) {
+		return false;
+	}
+
+	printf("\n");
+
 	if (!execute_muli_part_parse_test()) {
 		return false;
 	}
