@@ -14,6 +14,7 @@ clean:
 	@rm -rf bin/
 	@rm -rf rel/
 	@rm -rf tests/bin
+	@rm -f jx_tests
 
 bin/:
 	@mkdir bin
