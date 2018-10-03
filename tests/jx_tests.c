@@ -27,7 +27,7 @@ struct
 
 struct json_test
 {
-	bool should_pass;	
+	bool should_pass;
 	const char * const json;
 } simple_tests[] = {
 	{ true, "[]" },
@@ -72,6 +72,10 @@ struct json_test
 	{ false, "[ \"\\uDC37\" ] " },
 	{ false, "[ \"\\uD801\" ] " },
 	{ false, "[ \"\\u0000\" ] " },
+	{ false, "[1, 2, 3.14, 👾, 5]" },
+	{ false, "[ \x06 ]" },
+	{ false, "[ π ]" }, /* Enable extension JX_EXT_UTF8_PI */
+	{ false, "[ \x80\xcf ] "},
 
 	{ false, "[ \"\n\" ] " },
 	{ false, "[\"]" },
@@ -133,7 +137,7 @@ bool execute_muli_part_parse_test()
 		"22 ]"
 	};
 
-	printf("Testing parsing from multiple strings:\n");
+	printf("Testing parsing from multiple buffers:\n");
 
 	if ((cntx = jx_new()) == NULL) {
 		fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
@@ -279,6 +283,34 @@ cleanup:
 	return success;
 }
 
+bool execute_ext_utf8_pi_test()
+{
+	jx_cntx * cntx;
+
+	printf("Testing extension [JX_EXT_UTF8_PI]\n");
+
+	if ((cntx = jx_new()) == NULL) {
+		fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
+		return false;
+	}
+
+	jx_set_extensions(cntx, JX_EXT_UTF8_PI);
+
+	jx_parse_json(cntx, "[\xcf", 2);
+
+	if (jx_parse_json(cntx, "\x80]", 2) != 1) {
+		fprintf(stderr, "Error: %s\n", jx_get_error_message(cntx));
+		jx_free(cntx);
+		return false;
+	}
+
+	printf("Success\n");
+
+	jx_free(cntx);
+
+	return true;
+}
+
 bool execute_simple_tests()
 {
 	int i;
@@ -290,7 +322,7 @@ bool execute_simple_tests()
 
 	printf("Executing simple tests:\n");
 
-	n_tests = sizeof(simple_tests) / sizeof(struct json_test);	
+	n_tests = sizeof(simple_tests) / sizeof(struct json_test);
 	n_passed = 0;
 
 	for (i = 0; i < n_tests; i++) {
@@ -344,6 +376,12 @@ bool run_tests()
 	printf("\n");
 
 	if (!execute_muli_part_parse_test()) {
+		return false;
+	}
+
+	printf("\n");
+
+	if (!execute_ext_utf8_pi_test()) {
 		return false;
 	}
 
@@ -436,7 +474,7 @@ int main(int argc, char ** argv)
 
 					cmd_action = CHECK_STRING;
 
-					json = argv[++i];					
+					json = argv[++i];
 				}
 				else if (opt == 'v') {
 					cmd_opts.verbose = true;

@@ -1,4 +1,4 @@
-/* 
+/*
  * jx_util.c
  * Copyright (c) 2018, Cory Montgomery
  * All Rights Reserved
@@ -14,7 +14,7 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials
  *       provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -156,7 +156,16 @@ const char * const jx_get_error_message(jx_cntx * cntx)
 		return jx_error_messages[JX_ERROR_INVALID_CONTEXT];
 	}
 
-	return cntx->error_msg;	
+	return cntx->error_msg;
+}
+
+void jx_set_extensions(jx_cntx * cntx, jx_ext_set ext)
+{
+	if (cntx == NULL) {
+		return;
+	}
+
+	cntx->ext = ext;
 }
 
 jx_frame * jx_top(jx_cntx * cntx)
@@ -254,7 +263,7 @@ jx_state jx_get_state(jx_cntx * cntx)
 	frame = jx_top(cntx);
 
 	if (frame == NULL) {
-		return -1;	
+		return -1;
 	}
 
 	return frame->state;
@@ -348,6 +357,33 @@ int utf16_decode(uint16_t pair[2])
 	code += 0x10000;
 
 	return code;
+}
+
+int utf8_length(unsigned char * src)
+{
+	if (src == NULL) {
+		return -1;
+	}
+
+	if ((src[0] & 0x80) == 0) { /* 7-bit ASCII byte */
+		return 1;
+	}
+	else if ((src[0] & 0xc0) == 0x80) { /* continuation byte */
+		return -1;
+	}
+	else { /* multi-byte character */
+		int i = 0;
+
+		while (src[0] & (1 << (7 - i))) {
+			i++;
+
+			if (i > 4) { /* not a valid UTF-8 byte */
+				return -1;
+			}
+		}
+
+		return i;
+	}
 }
 
 int utf8_length_for_value(int code_point)
@@ -466,7 +502,7 @@ long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	return pos;
 }
 
-jx_token_type jx_get_token_type(const char * src, long pos, long end_pos)
+jx_token jx_token_type(const char * src, long pos)
 {
 	if (src[pos] == '[') {
 		return JX_TOKEN_ARRAY_BEGIN;
@@ -483,17 +519,42 @@ jx_token_type jx_get_token_type(const char * src, long pos, long end_pos)
 	else if (src[pos] == '"') {
 		return JX_TOKEN_STRING_DELIMITER;
 	}
+	else if (((unsigned char)src[pos] & 0xC0) == 0xC0) {
+		return JX_TOKEN_UNICODE;
+	}
 	else {
 		return JX_TOKEN_NONE;
 	}
 }
 
-bool jx_start_token(jx_token_type token_type)
+jx_uni_token jx_unicode_token_type(jx_cntx * cntx)
 {
-	switch (token_type) {
+	if (cntx->ext & JX_EXT_UTF8_PI) {
+		/* U+03C0 (GREEK LOWERCASE PI) */
+		if (strncmp(cntx->uni_tok, "\xCF\x80", cntx->uni_tok_len) == 0) {
+			return JX_UNI_LOWER_PI;
+		}
+	}
+
+	return JX_UNI_UNSUPPORTED;
+}
+
+jx_value * jx_unicode_token_object(jx_uni_token type)
+{
+	if (type == JX_UNI_LOWER_PI) {
+		return jxv_number_new(3.14159);
+	}
+
+	return NULL;
+}
+
+bool jx_start_token(jx_token token)
+{
+	switch (token) {
 		case JX_TOKEN_ARRAY_BEGIN:
 		case JX_TOKEN_NUMBER:
 		case JX_TOKEN_STRING_DELIMITER:
+		case JX_TOKEN_UNICODE:
 			return true;
 		default:
 			return false;
@@ -502,27 +563,36 @@ bool jx_start_token(jx_token_type token_type)
 
 void jx_illegal_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 {
-	if (cntx == NULL) {
+	unsigned char * buf;
+	char * token_name;
+	char token[2];
+
+	if (cntx == NULL || src == NULL) {
 		return;
 	}
 
-	if (src[pos] < 0x20) {
-		jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "control character");
+	buf = (unsigned char *)src;
+
+	if (buf[pos] < 0x20) {
+		token_name = "control character";
+	}
+	else if (buf[pos] > 0x7f) {
+		token_name = "illegal character";
 	}
 	else {
-		char token[2];
-
 		token[0] = src[pos];
 		token[1] = '\0';
 
-		jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, token);
+		token_name = token;
 	}
+
+	jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, token_name);
 }
 
 long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * next_token)
 {
 	jx_value * ret;
-	jx_token_type token_type;
+	jx_token token;
 
 	if (cntx == NULL || src == NULL || next_token == NULL) {
 		return -1;
@@ -547,7 +617,7 @@ long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 		jx_set_state(cntx, JX_ARRAY_STATE_NEW_MEMBER);
 	}
 
-	token_type = jx_get_token_type(src, pos, end_pos);
+	token = jx_token_type(src, pos);
 
 	/* ----------------------------------------------------------------------*
 	 *                       Overview of Array States                        *
@@ -557,7 +627,7 @@ long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 	 * [ m,   # SEPARATOR STATE   - accept: member                           *
 	 * ]      # TERMINAL STATE    - return array to previous frame           *
 	 * ----------------------------------------------------------------------*/
-	if (token_type == JX_TOKEN_ARRAY_SEPARATOR) {
+	if (token == JX_TOKEN_ARRAY_SEPARATOR) {
 		if (jx_get_state(cntx) != JX_ARRAY_STATE_NEW_MEMBER) {
 			jx_set_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col, ",");
 			return -1;
@@ -571,7 +641,7 @@ long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 
 		*next_token = true;
 	}
-	else if (token_type == JX_TOKEN_ARRAY_END) {
+	else if (token == JX_TOKEN_ARRAY_END) {
 		jx_value * array;
 
 		if (jx_get_state(cntx) == JX_ARRAY_STATE_SEPARATOR) {
@@ -596,7 +666,7 @@ long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 		*next_token = true;
 	}
 	else {
-		if (token_type == JX_TOKEN_NONE) {
+		if (token == JX_TOKEN_NONE) {
 			jx_illegal_token(cntx, src, pos, end_pos);
 			return -1;
 		}
@@ -741,7 +811,7 @@ int jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_po
 
 	if (cntx == NULL || src == NULL || done == NULL) {
 		return -1;
-	}	
+	}
 
 	if (pos < 0) {
 		return -1;
@@ -993,7 +1063,7 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 	long end_pos;
 
 	jx_mode mode;
-	jx_token_type token_type;
+	jx_token token;
 
 	if (cntx == NULL || src == NULL) {
 		return -1;
@@ -1075,24 +1145,61 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 			continue;
 
 		}
+		else if (mode == JX_MODE_PARSE_UNI) {
+			/* If non-continuation byte found after starting byte in sequence. */
+			if (cntx->uni_tok_i > 0 && ((unsigned char)src[pos] & 0xC0) != 0x80) {
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "illegal character");
+				return -1;
+			}
+
+			cntx->uni_tok[cntx->uni_tok_i++] = src[pos++];
+
+			/* Check if we have a complete sequence. */
+			if (cntx->uni_tok_i == cntx->uni_tok_len) {
+				jx_value * value;
+				jx_uni_token type;
+
+				cntx->uni_tok[cntx->uni_tok_i] = '\0';
+
+				if ((type = jx_unicode_token_type(cntx)) == JX_UNI_UNSUPPORTED) {
+					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, cntx->uni_tok);
+					return -1;
+				}
+
+				value = jx_unicode_token_object(type);
+
+				if (value == NULL) {
+					jx_set_error(cntx, JX_ERROR_LIBC);
+					return -1;
+				}
+
+				jx_pop_mode(cntx);
+				jx_set_return(cntx, value);
+
+				cntx->col++;
+				cntx->inside_token = false;
+			}
+
+			continue;
+		}
 		else if (mode == JX_MODE_DONE) {
 			jx_set_error(cntx, JX_ERROR_TRAILING_CHARS, cntx->line, cntx->col, src[pos]);
 			return -1;
 		}
 
-		token_type = jx_get_token_type(src, pos, end_pos);
+		token = jx_token_type(src, pos);
 
-		if (!jx_start_token(token_type)) {
+		if (!jx_start_token(token)) {
 			jx_illegal_token(cntx, src, pos, end_pos);
 			return -1;
 		}
 
-		if (cntx->depth == 0 && token_type != JX_TOKEN_ARRAY_BEGIN) {
+		if (cntx->depth == 0 && token != JX_TOKEN_ARRAY_BEGIN) {
 			jx_set_error(cntx, JX_ERROR_INVALID_ROOT, cntx->line, cntx->col);
 			return -1;
 		}
-		
-		if (token_type == JX_TOKEN_ARRAY_BEGIN) {
+
+		if (token == JX_TOKEN_ARRAY_BEGIN) {
 			jx_value * array;
 
 			array = jxa_new(JX_DEFAULT_ARRAY_SIZE);
@@ -1114,7 +1221,7 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 			cntx->col++;
 			cntx->depth++;
 		}
-		else if (token_type == JX_TOKEN_NUMBER) {
+		else if (token == JX_TOKEN_NUMBER) {
 			if (!jx_push_mode(cntx, JX_MODE_PARSE_NUMBER)) {
 				return -1;
 			}
@@ -1123,7 +1230,7 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 
 			jx_set_state(cntx, JX_NUM_DEFAULT);
 		}
-		else if (token_type == JX_TOKEN_STRING_DELIMITER) {
+		else if (token == JX_TOKEN_STRING_DELIMITER) {
 			jx_value * str;
 
 			str = jxs_new(NULL);
@@ -1144,6 +1251,22 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 
 			cntx->col++;
 			cntx->inside_token = true;
+		}
+		else if (token == JX_TOKEN_UNICODE) {
+			int len = utf8_length((unsigned char *)src + pos);
+
+			if (len == -1) {
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "illegal character");
+				return -1;
+			}
+
+			cntx->uni_tok_len = len;
+			cntx->uni_tok_i = 0;
+			cntx->inside_token = true;
+
+			if (!jx_push_mode(cntx, JX_MODE_PARSE_UNI)) {
+				return -1;
+			}
 		}
 	}
 

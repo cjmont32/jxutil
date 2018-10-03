@@ -1,4 +1,4 @@
-/* 
+/*
  * jx_util.h
  * Copyright (c) 2018, Cory Montgomery
  * All Rights Reserved
@@ -14,7 +14,7 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials
  *       provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -35,10 +35,11 @@
 
 #include <jx_value.h>
 
-#define JX_TOKEN_BUF_SIZE     26
-#define JX_ERROR_BUF_MAX_SIZE 2048
+#define JX_EXT_NONE 	0
+#define JX_EXT_UTF8_PI	(1 << 0)
 
 typedef int jx_state;
+typedef unsigned int jx_ext_set;
 
 typedef enum
 {
@@ -61,6 +62,7 @@ typedef enum
 	JX_MODE_PARSE_ARRAY,
 	JX_MODE_PARSE_NUMBER,
 	JX_MODE_PARSE_STRING,
+	JX_MODE_PARSE_UNI,
 	JX_MODE_DONE
 } jx_mode;
 
@@ -71,8 +73,20 @@ typedef enum
 	JX_TOKEN_ARRAY_SEPARATOR,
 	JX_TOKEN_ARRAY_END,
 	JX_TOKEN_NUMBER,
-	JX_TOKEN_STRING_DELIMITER
-} jx_token_type;
+	JX_TOKEN_STRING_DELIMITER,
+	JX_TOKEN_UNICODE
+} jx_token;
+
+typedef enum
+{
+	JX_UNI_UNSUPPORTED,
+	JX_UNI_LOWER_PI
+} jx_uni_token;
+
+#ifdef JX_INTERNAL
+
+#define JX_TOKEN_BUF_SIZE     26
+#define JX_ERROR_BUF_MAX_SIZE 2048
 
 typedef struct
 {
@@ -86,7 +100,7 @@ typedef struct
 
 typedef struct
 {
-	size_t line;	
+	size_t line;
 	size_t col;
 	size_t depth;
 
@@ -98,11 +112,20 @@ typedef struct
 	char tok_buf[JX_TOKEN_BUF_SIZE];
 	int tok_buf_pos;
 
+	char uni_tok[5];
+	int uni_tok_len, uni_tok_i;
+
 	bool inside_token;
+
+	jx_ext_set ext;
 
 	char error_msg[JX_ERROR_BUF_MAX_SIZE];
 	jx_error error;
 } jx_cntx;
+#else
+struct jx_cntx;
+typedef struct jx_cntx jx_cntx;
+#endif
 
 jx_cntx * jx_new();
 void jx_free(jx_cntx * cntx);
@@ -125,6 +148,8 @@ jx_value * jx_get_return(jx_cntx * cntx);
 
 jx_error jx_get_error(jx_cntx * cntx);
 const char * const jx_get_error_message(jx_cntx * cntx);
+
+void jx_set_extensions(jx_cntx * cntx, jx_ext_set ext);
 
 int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes);
 
