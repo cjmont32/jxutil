@@ -73,7 +73,7 @@ typedef enum
 	JX_TOKEN_ARRAY_SEPARATOR,
 	JX_TOKEN_ARRAY_END,
 	JX_TOKEN_NUMBER,
-	JX_TOKEN_STRING_DELIMITER,
+	JX_TOKEN_STRING,
 	JX_TOKEN_UNICODE
 } jx_token;
 
@@ -81,7 +81,7 @@ typedef enum
 {
 	JX_UNI_UNSUPPORTED,
 	JX_UNI_LOWER_PI
-} jx_uni_token;
+} jx_utoken;
 
 #ifdef JX_INTERNAL
 

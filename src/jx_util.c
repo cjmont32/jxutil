@@ -517,7 +517,7 @@ jx_token jx_token_type(const char * src, long pos)
 		return JX_TOKEN_NUMBER;
 	}
 	else if (src[pos] == '"') {
-		return JX_TOKEN_STRING_DELIMITER;
+		return JX_TOKEN_STRING;
 	}
 	else if (((unsigned char)src[pos] & 0xC0) == 0xC0) {
 		return JX_TOKEN_UNICODE;
@@ -527,7 +527,7 @@ jx_token jx_token_type(const char * src, long pos)
 	}
 }
 
-jx_uni_token jx_unicode_token_type(jx_cntx * cntx)
+jx_utoken jx_unicode_token_type(jx_cntx * cntx)
 {
 	if (cntx->ext & JX_EXT_UTF8_PI) {
 		/* U+03C0 (GREEK LOWERCASE PI) */
@@ -539,7 +539,7 @@ jx_uni_token jx_unicode_token_type(jx_cntx * cntx)
 	return JX_UNI_UNSUPPORTED;
 }
 
-jx_value * jx_unicode_token_object(jx_uni_token type)
+jx_value * jx_unicode_token_object(jx_utoken type)
 {
 	if (type == JX_UNI_LOWER_PI) {
 		return jxv_number_new(3.14159);
@@ -553,7 +553,7 @@ bool jx_start_token(jx_token token)
 	switch (token) {
 		case JX_TOKEN_ARRAY_BEGIN:
 		case JX_TOKEN_NUMBER:
-		case JX_TOKEN_STRING_DELIMITER:
+		case JX_TOKEN_STRING:
 		case JX_TOKEN_UNICODE:
 			return true;
 		default:
@@ -1158,7 +1158,7 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 				/* Check if we have a complete sequence. */
 				if (cntx->uni_tok_i == cntx->uni_tok_len) {
 					jx_value * value;
-					jx_uni_token type;
+					jx_utoken type;
 
 					cntx->uni_tok[cntx->uni_tok_i] = '\0';
 
@@ -1234,7 +1234,7 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 
 			jx_set_state(cntx, JX_NUM_DEFAULT);
 		}
-		else if (token == JX_TOKEN_STRING_DELIMITER) {
+		else if (token == JX_TOKEN_STRING) {
 			jx_value * str;
 
 			str = jxs_new(NULL);
