@@ -1145,39 +1145,43 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 			continue;
 
 		}
-		else if (mode == JX_MODE_PARSE_UNI) {
-			/* If non-continuation byte found after starting byte in sequence. */
-			if (cntx->uni_tok_i > 0 && ((unsigned char)src[pos] & 0xC0) != 0x80) {
-				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "illegal character");
-				return -1;
-			}
-
-			cntx->uni_tok[cntx->uni_tok_i++] = src[pos++];
-
-			/* Check if we have a complete sequence. */
-			if (cntx->uni_tok_i == cntx->uni_tok_len) {
-				jx_value * value;
-				jx_uni_token type;
-
-				cntx->uni_tok[cntx->uni_tok_i] = '\0';
-
-				if ((type = jx_unicode_token_type(cntx)) == JX_UNI_UNSUPPORTED) {
-					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, cntx->uni_tok);
+		else if (mode == JX_MODE_PARSE_UTF8) {
+			while (pos <= end_pos) {
+				/* If non-continuation byte found after starting byte in sequence. */
+				if (cntx->uni_tok_i > 0 && ((unsigned char)src[pos] & 0xC0) != 0x80) {
+					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "illegal character");
 					return -1;
 				}
 
-				value = jx_unicode_token_object(type);
+				cntx->uni_tok[cntx->uni_tok_i++] = src[pos++];
 
-				if (value == NULL) {
-					jx_set_error(cntx, JX_ERROR_LIBC);
-					return -1;
+				/* Check if we have a complete sequence. */
+				if (cntx->uni_tok_i == cntx->uni_tok_len) {
+					jx_value * value;
+					jx_uni_token type;
+
+					cntx->uni_tok[cntx->uni_tok_i] = '\0';
+
+					if ((type = jx_unicode_token_type(cntx)) == JX_UNI_UNSUPPORTED) {
+						jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, cntx->uni_tok);
+						return -1;
+					}
+
+					value = jx_unicode_token_object(type);
+
+					if (value == NULL) {
+						jx_set_error(cntx, JX_ERROR_LIBC);
+						return -1;
+					}
+
+					jx_pop_mode(cntx);
+					jx_set_return(cntx, value);
+
+					cntx->col++;
+					cntx->inside_token = false;
+
+					break;
 				}
-
-				jx_pop_mode(cntx);
-				jx_set_return(cntx, value);
-
-				cntx->col++;
-				cntx->inside_token = false;
 			}
 
 			continue;
@@ -1264,7 +1268,7 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 			cntx->uni_tok_i = 0;
 			cntx->inside_token = true;
 
-			if (!jx_push_mode(cntx, JX_MODE_PARSE_UNI)) {
+			if (!jx_push_mode(cntx, JX_MODE_PARSE_UTF8)) {
 				return -1;
 			}
 		}
