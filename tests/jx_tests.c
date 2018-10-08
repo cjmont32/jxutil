@@ -67,19 +67,20 @@ struct json_test
 	{ true, "[ \"]]]][[[,,\\\\,,\\\"\", \"[1, 2, 3, 4, 5, 6, 7]\", \"[\", \"[1,2,3,\" ]" },
 
 	{ true, "[ \"\\uD801\\uDC37\\u03c0\\ud801\\udc37\" ] " },
+	{ false, "[ \"\\uD83D\\uDC7E = 👾\", 👾 ]" },
 
 	{ false, "[ \"\\uDC37\\uD801\" ] " },
 	{ false, "[ \"\\uDC37\" ] " },
 	{ false, "[ \"\\uD801\" ] " },
 	{ false, "[ \"\\u0000\" ] " },
 	{ false, "[1, 2, 3.14, 👾, 5]" },
+	{ false, "[ \"\x7f\" ]" },
+	{ false, "[ \"\\u007f\" ] " },
 	{ false, "[ \x06 ]" },
 	{ false, "[ π ]" }, /* Enable extension JX_EXT_UTF8_PI */
 	{ false, "[ \x80\xcf ] "},
 
-	{ false, "[ \"\n\" ] " },
-	{ false, "[\"]" },
-	{ false, "[\"]\"" }
+
 };
 
 void sum_func(jx_value * number, void * ptr)

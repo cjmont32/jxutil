@@ -54,9 +54,10 @@
 #define JX_NUM_DEFAULT               JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS
 
 #define JX_STRING_ESCAPE             (1 << 0)
-#define JX_STRING_UNICODE            (1 << 1)
-#define JX_STRING_SURROGATE          (1 << 2)
-#define JX_STRING_END                (1 << 3)
+#define JX_STRING_UTF8               (1 << 1)
+#define JX_STRING_UNICODE            (1 << 2)
+#define JX_STRING_SURROGATE          (1 << 3)
+#define JX_STRING_END                (1 << 4)
 
 #define JX_DEFAULT_OBJECT_STACK_SIZE 8
 #define JX_DEFAULT_ARRAY_SIZE        8
@@ -895,7 +896,7 @@ int jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_po
 		}
 
 		if (code_point != -1) {
-			if (code_point >= 0x20) {
+			if (code_point >= 0x20 && code_point != 0x7f) {
 				char utf8_buf[5];
 
 				jx_value * str = jx_get_value(cntx);
@@ -912,7 +913,7 @@ int jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_po
 			}
 			else {
 				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
-					"illegal control character in string");
+					"control character in string");
 
 				return -1;
 			}
@@ -997,6 +998,25 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 
 			state &= ~JX_STRING_ESCAPE;
 		}
+		else if (state & JX_STRING_UTF8) {
+			while (pos <= end_pos) {
+				if ((buf[pos] & 0xC0) != 0x80) {
+					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+						"illegal character in string");
+					return -1;
+				}
+
+				jxs_append_chr(str, buf[pos++]);
+
+				if (--cntx->uni_tok_len == 0) {
+					state &= ~JX_STRING_UTF8;
+					cntx->col++;
+					break;
+				}
+			}
+
+			continue;
+		}
 		else if (state & JX_STRING_UNICODE) {
 			escape_done = false;
 
@@ -1027,17 +1047,35 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 			if (buf[pos] == '\\') {
 				state |= JX_STRING_ESCAPE;
 			}
+			else if ((buf[pos] & 0xC0) == 0xC0) {
+				int len = utf8_length(buf + pos);
+
+				if (len == -1) {
+					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+						"illegal character in string");
+					return -1;
+				}
+
+				jxs_append_chr(str, buf[pos++]);
+
+				len--;
+
+				state = JX_STRING_UTF8;
+
+				cntx->uni_tok_len = len;
+
+				continue;
+			}
 			else if (buf[pos] == '"') {
 				state = JX_STRING_END;
 			}
 			else {
-				if (buf[pos] >= 0x20) {
+				if (buf[pos] >= 0x20 && buf[pos] <= 0x7e) {
 					jxs_append_chr(str, buf[pos]);
 				}
 				else {
 					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
 						"control character in string");
-
 					return -1;
 				}
 			}
