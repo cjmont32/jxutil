@@ -51,6 +51,7 @@ struct json_test
 	{ true, "[[[1024]]]" },
 	{ true, "[[[5, 9 ]]]" },
 	{ true, "[ [ 9, 3, 2], [ 1.5, 99.9999, 0.9999 ], [ -40 ], -99.5e-4 ]" },
+	{ true, "[ true, false, null, null, false, true, [true,false,null,null,false], null ]" },
 
 	{ false, "" },
 	{ false, "99" },
@@ -78,9 +79,7 @@ struct json_test
 	{ false, "[ \"\\u007f\" ] " },
 	{ false, "[ \x06 ]" },
 	{ false, "[ π ]" }, /* Enable extension JX_EXT_UTF8_PI */
-	{ false, "[ \x80\xcf ] "},
-
-
+	{ false, "[ \x80\xcf ] " }
 };
 
 void sum_func(jx_value * number, void * ptr)

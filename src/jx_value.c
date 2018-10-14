@@ -1,4 +1,4 @@
-/* 
+/*
  * jx_value.c
  * Copyright (c) 2018, Cory Montgomery
  * All Rights Reserved
@@ -14,7 +14,7 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials
  *       provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -50,7 +50,7 @@ jx_value * jxv_new(jx_type type)
 
 	if ((value = calloc(1, sizeof(jx_value))) == NULL) {
 		return NULL;
-	}	
+	}
 
 	value->type = type;
 
@@ -81,7 +81,7 @@ size_t jxa_get_length(jx_value * array)
 		return 0;
 	}
 
-	return array->length;	
+	return array->length;
 }
 
 jx_type jxa_get_type(jx_value * array, size_t i)
@@ -112,7 +112,7 @@ bool jxa_push(jx_value * array, jx_value * value)
 
 	if (array->length == array->size) {
 		void ** newArray;
-		size_t newSize;	
+		size_t newSize;
 
 		newSize = array->size * 2;
 		newArray = realloc(array->v.vpp, sizeof(jx_value *) * newSize);
@@ -328,7 +328,7 @@ bool jxs_append_fmt(jx_value * dst, char * fmt, ...)
 		if (!jxs_resize(dst, new_length + 1)) {
 			return false;
 		}
-	} 
+	}
 
 	va_start(ap, fmt);
 	vsprintf(dst->v.vp + dst->length, fmt, ap);
@@ -357,6 +357,48 @@ bool jxs_append_chr(jx_value * dst, char c)
 	return true;
 }
 
+jx_value * jxv_null()
+{
+	static bool init = false;
+	static jx_value val_null;
+
+	if (!init) {
+		val_null.type = JX_TYPE_NULL;
+		init = true;
+	}
+
+	return &val_null;
+}
+
+bool jxv_is_null(jx_value * value)
+{
+	if (value == NULL) {
+		return false;
+	}
+
+	return value->type == JX_TYPE_NULL;
+}
+
+jx_value * jxv_bool_new(bool value)
+{
+	static bool init = false;
+
+	static jx_value val_true;
+	static jx_value val_false;
+
+	if (!init) {
+		val_true.type = JX_TYPE_BOOL;
+		val_true.v.vb = true;
+
+		val_false.type = JX_TYPE_BOOL;
+		val_false.v.vb = false;
+
+		init = true;
+	}
+
+	return (value) ? &val_true : &val_false;
+}
+
 void jxv_free(jx_value * value)
 {
 	jx_type type;
@@ -380,6 +422,9 @@ void jxv_free(jx_value * value)
 		}
 
 		free(value->v.vpp);
+	}
+	else if (type == JX_TYPE_NULL || type == JX_TYPE_BOOL) {
+		return;
 	}
 
 	free(value);

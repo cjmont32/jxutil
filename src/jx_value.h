@@ -1,4 +1,4 @@
-/* 
+/*
  * jx_value.h
  * Copyright (c) 2018, Cory Montgomery
  * All Rights Reserved
@@ -14,7 +14,7 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials
  *       provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -35,8 +35,10 @@
 typedef enum
 {
 	JX_TYPE_UNDEF,
+	JX_TYPE_NULL,
 	JX_TYPE_ARRAY,
 	JX_TYPE_NUMBER,
+	JX_TYPE_BOOL,
 	JX_TYPE_STRING,
 	JX_TYPE_PTR
 } jx_type;
@@ -44,6 +46,7 @@ typedef enum
 typedef struct
 {
 	union {
+		bool vb;
 		double vf;
 		void * vp;
 		void ** vpp;
@@ -73,4 +76,7 @@ bool jxs_append_str(jx_value * dst, char * src);
 bool jxs_append_fmt(jx_value * dst, char * fmt, ...);
 bool jxs_append_chr(jx_value * dst, char c);
 char * jxs_get_str(jx_value * str);
+jx_value * jxv_null();
+bool jxv_is_null(jx_value * value);
+jx_value * jxv_bool_new(bool value);
 void jxv_free(jx_value * value);

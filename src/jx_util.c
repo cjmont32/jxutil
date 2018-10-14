@@ -520,6 +520,9 @@ jx_token jx_token_type(const char * src, long pos)
 	else if (src[pos] == '"') {
 		return JX_TOKEN_STRING;
 	}
+	else if (src[pos] >= 'a' && src[pos] <= 'z') {
+		return JX_TOKEN_KEYWORD;
+	}
 	else if (((unsigned char)src[pos] & 0xC0) == 0xC0) {
 		return JX_TOKEN_UNICODE;
 	}
@@ -555,6 +558,7 @@ bool jx_start_token(jx_token token)
 		case JX_TOKEN_ARRAY_BEGIN:
 		case JX_TOKEN_NUMBER:
 		case JX_TOKEN_STRING:
+		case JX_TOKEN_KEYWORD:
 		case JX_TOKEN_UNICODE:
 			return true;
 		default:
@@ -1095,6 +1099,57 @@ int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 	return pos;
 }
 
+long jx_parse_keyword(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+{
+	if (cntx == NULL || src == NULL || done == NULL) {
+		return -1;
+	}
+
+	while (pos <= end_pos) {
+		if (cntx->tok_buf_pos >= 5 || !(src[pos] >= 'a' && src[pos] <= 'z')) {
+			jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, cntx->tok_buf);
+			return -1;
+		}
+
+		cntx->tok_buf[cntx->tok_buf_pos++] = src[pos++];
+		cntx->tok_buf[cntx->tok_buf_pos] = '\0';
+
+		if (cntx->tok_buf_pos < 4) {
+			continue;
+		}
+
+		if (strcmp(cntx->tok_buf, "null") == 0) {
+			jx_set_value(cntx, jxv_null());
+
+			cntx->col += cntx->tok_buf_pos;
+
+			*done = true;
+
+			break;
+		}
+		else if (strcmp(cntx->tok_buf, "true") == 0) {
+			jx_set_value(cntx, jxv_bool_new(true));
+
+			cntx->col += cntx->tok_buf_pos;
+
+			*done = true;
+
+			break;
+		}
+		else if (strcmp(cntx->tok_buf, "false") == 0) {
+			jx_set_value(cntx, jxv_bool_new(false));
+
+			cntx->col += cntx->tok_buf_pos;
+
+			*done = true;
+
+			break;
+		}
+	}
+
+	return pos;
+}
+
 int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 {
 	long pos;
@@ -1182,6 +1237,26 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 
 			continue;
 
+		}
+		else if (mode == JX_MODE_PARSE_KEYWORD) {
+			bool done = false;
+
+			pos = jx_parse_keyword(cntx, src, pos, end_pos, &done);
+
+			if (pos == -1) {
+				return -1;
+			}
+
+			if (done) {
+				jx_value * val = jx_get_value(cntx);
+
+				jx_pop_mode(cntx);
+				jx_set_return(cntx, val);
+
+				cntx->inside_token = false;
+			}
+
+			continue;
 		}
 		else if (mode == JX_MODE_PARSE_UTF8) {
 			while (pos <= end_pos) {
@@ -1292,6 +1367,15 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 			pos++;
 
 			cntx->col++;
+			cntx->inside_token = true;
+		}
+		else if (token == JX_TOKEN_KEYWORD) {
+			if (!jx_push_mode(cntx, JX_MODE_PARSE_KEYWORD)) {
+				jx_set_error(cntx, JX_ERROR_LIBC);
+				return -1;
+			}
+
+			cntx->tok_buf_pos = 0;
 			cntx->inside_token = true;
 		}
 		else if (token == JX_TOKEN_UNICODE) {
