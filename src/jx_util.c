@@ -1150,6 +1150,53 @@ long jx_parse_keyword(jx_cntx * cntx, const char * src, long pos, long end_pos, 
 	return pos;
 }
 
+long jx_parse_utf8(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+{
+	if (cntx == NULL || src == NULL || done == NULL) {
+		return -1;
+	}
+
+	while (pos <= end_pos) {
+		/* If non-continuation byte found after starting byte in sequence. */
+		if (cntx->uni_tok_i > 0 && ((unsigned char)src[pos] & 0xC0) != 0x80) {
+			jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "illegal character");
+			return -1;
+		}
+
+		cntx->uni_tok[cntx->uni_tok_i++] = src[pos++];
+
+		/* Check if we have a complete sequence. */
+		if (cntx->uni_tok_i == cntx->uni_tok_len) {
+			jx_value * value;
+			jx_utoken type;
+
+			cntx->uni_tok[cntx->uni_tok_i] = '\0';
+
+			if ((type = jx_unicode_token_type(cntx)) == JX_UNI_UNSUPPORTED) {
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, cntx->uni_tok);
+				return -1;
+			}
+
+			value = jx_unicode_token_object(type);
+
+			if (value == NULL) {
+				jx_set_error(cntx, JX_ERROR_LIBC);
+				return -1;
+			}
+
+			jx_set_value(cntx, value);
+
+			cntx->col++;
+
+			*done = true;
+
+			break;
+		}
+	}
+
+	return pos;
+}
+
 int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 {
 	long pos;
@@ -1197,104 +1244,41 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 				continue;
 			}
 		}
-		else if (mode == JX_MODE_PARSE_NUMBER) {
+		else if (
+			mode == JX_MODE_PARSE_NUMBER ||
+			mode == JX_MODE_PARSE_STRING ||
+			mode == JX_MODE_PARSE_KEYWORD ||
+			mode == JX_MODE_PARSE_UTF8) {
 			bool done = false;
 
-			pos = jx_parse_number(cntx, src, pos, end_pos, &done);
-
-			if (pos == -1) {
-				return -1;
-			}
-
-			if (done) {
-				jx_value * number = jx_get_value(cntx);
-
-				jx_pop_mode(cntx);
-				jx_set_return(cntx, number);
-
-				cntx->inside_token = false;
-			}
-
-			continue;
-		}
-		else if (mode == JX_MODE_PARSE_STRING) {
-			bool done = false;
-
-			pos = jx_parse_string(cntx, src, pos, end_pos, &done);
-
-			if (pos == -1) {
-				return -1;
-			}
-
-			if (done) {
-				jx_value * str = jx_get_value(cntx);
-
-				jx_pop_mode(cntx);
-				jx_set_return(cntx, str);
-
-				cntx->inside_token = false;
-			}
-
-			continue;
-
-		}
-		else if (mode == JX_MODE_PARSE_KEYWORD) {
-			bool done = false;
-
-			pos = jx_parse_keyword(cntx, src, pos, end_pos, &done);
-
-			if (pos == -1) {
-				return -1;
-			}
-
-			if (done) {
-				jx_value * val = jx_get_value(cntx);
-
-				jx_pop_mode(cntx);
-				jx_set_return(cntx, val);
-
-				cntx->inside_token = false;
-			}
-
-			continue;
-		}
-		else if (mode == JX_MODE_PARSE_UTF8) {
-			while (pos <= end_pos) {
-				/* If non-continuation byte found after starting byte in sequence. */
-				if (cntx->uni_tok_i > 0 && ((unsigned char)src[pos] & 0xC0) != 0x80) {
-					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "illegal character");
-					return -1;
-				}
-
-				cntx->uni_tok[cntx->uni_tok_i++] = src[pos++];
-
-				/* Check if we have a complete sequence. */
-				if (cntx->uni_tok_i == cntx->uni_tok_len) {
-					jx_value * value;
-					jx_utoken type;
-
-					cntx->uni_tok[cntx->uni_tok_i] = '\0';
-
-					if ((type = jx_unicode_token_type(cntx)) == JX_UNI_UNSUPPORTED) {
-						jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, cntx->uni_tok);
-						return -1;
-					}
-
-					value = jx_unicode_token_object(type);
-
-					if (value == NULL) {
-						jx_set_error(cntx, JX_ERROR_LIBC);
-						return -1;
-					}
-
-					jx_pop_mode(cntx);
-					jx_set_return(cntx, value);
-
-					cntx->col++;
-					cntx->inside_token = false;
-
+			switch (mode) {
+				case JX_MODE_PARSE_NUMBER:
+					pos = jx_parse_number(cntx, src, pos, end_pos, &done);
 					break;
-				}
+				case JX_MODE_PARSE_STRING:
+					pos = jx_parse_string(cntx, src, pos, end_pos, &done);
+					break;
+				case JX_MODE_PARSE_KEYWORD:
+					pos = jx_parse_keyword(cntx, src, pos, end_pos, &done);
+					break;
+				case JX_MODE_PARSE_UTF8:
+					pos = jx_parse_utf8(cntx, src, pos, end_pos, &done);
+					break;
+				default:
+					break;
+			}
+
+			if (pos == -1) {
+				return -1;
+			}
+
+			if (done) {
+				jx_value * v = jx_get_value(cntx);
+
+				jx_pop_mode(cntx);
+				jx_set_return(cntx, v);
+
+				cntx->inside_token = false;
 			}
 
 			continue;
