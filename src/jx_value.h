@@ -43,6 +43,7 @@ typedef enum
 	JX_TYPE_PTR
 } jx_type;
 
+#ifdef JXV_INTERNAL
 typedef struct
 {
 	union {
@@ -57,6 +58,10 @@ typedef struct
 	size_t size;
 	size_t length;
 } jx_value;
+#else
+struct jx_value;
+typedef struct jx_value jx_value;
+#endif
 
 jx_type jxv_get_type(jx_value * value);
 jx_value * jxa_new(size_t capacity);
@@ -69,9 +74,11 @@ jx_value * jxa_top(jx_value * array);
 bool jxa_push_number(jx_value * array, double num);
 double jxa_get_number(jx_value * arr, size_t i);
 bool jxa_push_ptr(jx_value * array, void * ptr);
+void * jxa_get_ptr(jx_value * array, size_t i);
+void * jxv_get_ptr(jx_value * value);
 jx_value * jxv_number_new(double num);
+double jxv_get_number(jx_value * value);
 jx_value * jxs_new(const char * src);
-char * jxs_get_str(jx_value * str);
 bool jxs_append_str(jx_value * dst, char * src);
 bool jxs_append_fmt(jx_value * dst, char * fmt, ...);
 bool jxs_append_chr(jx_value * dst, char c);
@@ -79,4 +86,5 @@ char * jxs_get_str(jx_value * str);
 jx_value * jxv_null();
 bool jxv_is_null(jx_value * value);
 jx_value * jxv_bool_new(bool value);
+bool jxv_get_bool(jx_value * value);
 void jxv_free(jx_value * value);

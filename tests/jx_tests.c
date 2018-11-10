@@ -96,7 +96,7 @@ void sum_func(jx_value * number, void * ptr)
 
 	sum = (double *)ptr;
 
-	*sum += number->v.vf;
+	*sum += jxv_get_number(number);
 }
 
 bool iterate_array(jx_value * array, void * ptr, void (*f)(jx_value * value, void * ptr))

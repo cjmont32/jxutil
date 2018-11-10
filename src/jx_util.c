@@ -171,19 +171,11 @@ void jx_set_extensions(jx_cntx * cntx, jx_ext_set ext)
 
 jx_frame * jx_top(jx_cntx * cntx)
 {
-	jx_value * value;
-
 	if (cntx == NULL) {
 		return NULL;
 	}
 
-	value = jxa_top(cntx->object_stack);
-
-	if (value == NULL || value->v.vp == NULL) {
-		return NULL;
-	}
-
-	return value->v.vp;
+	return jxv_get_ptr(jxa_top(cntx->object_stack));
 }
 
 bool jx_push_mode(jx_cntx * cntx, jx_mode mode)

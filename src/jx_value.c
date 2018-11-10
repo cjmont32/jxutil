@@ -29,9 +29,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define JXV_INTERNAL
+
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <math.h>
 
 #include <jx_value.h>
 
@@ -203,6 +206,24 @@ bool jxa_push_ptr(jx_value * array, void * ptr)
 	return true;
 }
 
+void * jxa_get_ptr(jx_value * array, size_t i)
+{
+	if (array == NULL || array->type != JX_TYPE_ARRAY) {
+		return NULL;
+	}
+
+	return jxv_get_ptr(jxa_get(array, i));
+}
+
+void * jxv_get_ptr(jx_value * value)
+{
+	if (value == NULL || value->type != JX_TYPE_PTR) {
+		return NULL;
+	}
+
+	return value->v.vp;
+}
+
 jx_value * jxv_number_new(double num)
 {
 	jx_value * value;
@@ -214,6 +235,15 @@ jx_value * jxv_number_new(double num)
 	value->v.vf = num;
 
 	return value;
+}
+
+double jxv_get_number(jx_value * v)
+{
+	if (v == NULL || v->type != JX_TYPE_NUMBER) {
+		return NAN;
+	}
+
+	return v->v.vf;
 }
 
 jx_value * jxs_new(const char * src)
