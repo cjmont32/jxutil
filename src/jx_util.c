@@ -810,7 +810,7 @@ long jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 	return pos;
 }
 
-int jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+long jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
 {
 	jx_state state;
 
@@ -933,7 +933,7 @@ int jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_po
 	return pos;
 }
 
-int jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+long jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
 {
 	jx_frame * frame;
 	jx_value * str;
