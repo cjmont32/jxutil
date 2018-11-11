@@ -314,34 +314,34 @@ jx_value * jx_get_return(jx_cntx * cntx)
 	return frame->return_value;
 }
 
-bool utf16_surrogate(uint16_t value)
+bool jx_utf16_surrogate(uint16_t value)
 {
 	return value >= 0xD800 && value <= 0xDFFF;
 }
 
-bool utf16_high_surrogate(uint16_t value)
+bool jx_utf16_high_surrogate(uint16_t value)
 {
 	return value >= 0xD800 && value <= 0xDBFF;
 }
 
-bool utf16_low_surrogate(uint16_t value)
+bool jx_utf16_low_surrogate(uint16_t value)
 {
 	return value >= 0xDC00 && value <= 0xDFFF;
 }
 
-int utf16_decode(uint16_t pair[2])
+int jx_utf16_decode(uint16_t pair[2])
 {
 	int code;
 
-	if (!utf16_surrogate(pair[0])) {
+	if (!jx_utf16_surrogate(pair[0])) {
 		return pair[0];
 	}
 
-	if (!utf16_high_surrogate(pair[0])) {
+	if (!jx_utf16_high_surrogate(pair[0])) {
 		return -1;
 	}
 
-	if (!utf16_low_surrogate(pair[1])) {
+	if (!jx_utf16_low_surrogate(pair[1])) {
 		return -1;
 	}
 
@@ -352,7 +352,7 @@ int utf16_decode(uint16_t pair[2])
 	return code;
 }
 
-int utf8_length(unsigned char * src)
+int jx_utf8_length(unsigned char * src)
 {
 	if (src == NULL) {
 		return -1;
@@ -379,7 +379,7 @@ int utf8_length(unsigned char * src)
 	}
 }
 
-int utf8_length_for_value(int code_point)
+int jx_utf8_length_for_value(int code_point)
 {
 	if (code_point < 0) {
 		return -1;
@@ -402,7 +402,7 @@ int utf8_length_for_value(int code_point)
 	}
 }
 
-bool unicode_to_utf8(char out[5], int code_point)
+bool jx_unicode_to_utf8(char out[5], int code_point)
 {
 	int bytes, byte, bit_in, bit_out;
 
@@ -410,7 +410,7 @@ bool unicode_to_utf8(char out[5], int code_point)
 		return false;
 	}
 
-	if ((bytes = utf8_length_for_value(code_point)) == -1) {
+	if ((bytes = jx_utf8_length_for_value(code_point)) == -1) {
 		return false;
 	}
 
@@ -855,8 +855,8 @@ long jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_p
 		if (state & JX_STRING_SURROGATE) {
 			/* Check to make sure that we have a low surrogate value,
 			 * and decode, otherwise return error. */
-			if (utf16_low_surrogate(cntx->code[1])) {
-				code_point = utf16_decode(cntx->code);
+			if (jx_utf16_low_surrogate(cntx->code[1])) {
+				code_point = jx_utf16_decode(cntx->code);
 				state &= ~JX_STRING_SURROGATE;
 				cntx->code_index = 0;
 			}
@@ -871,14 +871,14 @@ long jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_p
 			/* Non-surrogates are single 16-bit numbers that
 			 * correspond one-to-one with characters in the BMP
 			 * (Basic Multilingual Plane) or (plane-0) */
-			if (!utf16_surrogate(cntx->code[0])) {
+			if (!jx_utf16_surrogate(cntx->code[0])) {
 				code_point = cntx->code[0];
 			}
 			else {
 			 	/* The first surrogate should always be the high surrogate,
 				 * and we must wait for the low surrogate before we can
 				 * decode. */
-				if (utf16_high_surrogate(cntx->code[0])) {
+				if (jx_utf16_high_surrogate(cntx->code[0])) {
 					state |= JX_STRING_SURROGATE;
 					cntx->code_index = 1;
 				}
@@ -897,7 +897,7 @@ long jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_p
 
 				jx_value * str = jx_get_value(cntx);
 
-				if (unicode_to_utf8(utf8_buf, code_point)) {
+				if (jx_unicode_to_utf8(utf8_buf, code_point)) {
 					jxs_append_str(str, utf8_buf);
 				}
 				else {
@@ -1044,7 +1044,7 @@ long jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 				state |= JX_STRING_ESCAPE;
 			}
 			else if ((buf[pos] & 0xC0) == 0xC0) {
-				int len = utf8_length(buf + pos);
+				int len = jx_utf8_length(buf + pos);
 
 				if (len == -1) {
 					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
@@ -1355,7 +1355,7 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 			cntx->inside_token = true;
 		}
 		else if (token == JX_TOKEN_UNICODE) {
-			int len = utf8_length((unsigned char *)src + pos);
+			int len = jx_utf8_length((unsigned char *)src + pos);
 
 			if (len == -1) {
 				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, "illegal character");
