@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define JXV_INTERNAL
+#define JX_VALUE_INTERNAL
 
 #include <stdio.h>
 #include <string.h>
@@ -224,6 +224,376 @@ void * jxv_get_ptr(jx_value * value)
 	return value->v.vp;
 }
 
+int jx_trie_index_for_byte(unsigned char byte)
+{
+	/* allowed control characters */
+	switch (byte) {
+		case '\b':
+			return 0;
+		case '\f':
+			return 1;
+		case '\n':
+			return 2;
+		case '\r':
+			return 3;
+		case '\t':
+			return 4;
+		default:
+			break;
+	};
+
+	/* control character */
+	if (byte < 0x20 || byte == 0x7f) {
+		return -1;
+	}
+
+	byte -= 27;
+
+	if (byte >= JX_NODE_CNT) {
+		return -1;
+	}
+
+	return byte;
+}
+
+unsigned char jx_trie_byte_for_index(int index)
+{
+	char cntl_bytes[] = { '\b', '\f', '\n', '\r', '\t' };
+
+	if (index < 5) {
+		return cntl_bytes[index];
+	}
+
+	return index + 27;
+}
+
+jx_trie_node * jx_trie_add_key(jx_trie_node * node, unsigned char * key, int key_i)
+{
+	if (node == NULL || key == NULL) {
+		return NULL;
+	}
+
+	if (key[key_i] == '\0') {
+		return node;
+	}
+	else {
+		int i = jx_trie_index_for_byte(key[key_i]);
+
+		if (i == -1) {
+			return NULL;
+		}
+
+		if (node->child_nodes[i] == NULL) {
+			jx_trie_node * new_node = calloc(1, sizeof(jx_trie_node));
+
+			if (new_node == NULL) {
+				return NULL;
+			}
+
+			new_node->byte = key[key_i];
+
+			node->child_nodes[i] = new_node;
+		}
+
+		return jx_trie_add_key(node->child_nodes[i], key, ++key_i);
+	}
+}
+
+jx_trie_node * jx_trie_get_key(jx_trie_node * node, unsigned char * key, int key_i)
+{
+	if (node == NULL || key == NULL) {
+		return NULL;
+	}
+
+	if (key[key_i] == '\0') {
+		return node;
+	}
+	else {
+		int i = jx_trie_index_for_byte(key[key_i]);
+
+		if (i == -1 || node->child_nodes[i] == NULL) {
+			return NULL;
+		}
+
+		return jx_trie_get_key(node->child_nodes[i], key, ++key_i);
+	}
+}
+
+jx_value * jx_trie_del_key(jx_trie_node * node, unsigned char * key, int key_i)
+{
+	if (node == NULL || key == NULL) {
+		return NULL;
+	}
+
+	if (key[key_i] == '\0') {
+		jx_value * value = node->value;
+
+		node->value = NULL;
+
+		return value;
+	}
+	else {
+		int i = jx_trie_index_for_byte(key[key_i]);
+
+		if (i == -1 || node->child_nodes[i] == NULL) {
+			return NULL;
+		}
+		else {
+			jx_value * value = jx_trie_del_key(node->child_nodes[i], key, ++key_i);
+
+			/* prune branch if it's empty */
+			if (value != NULL) {
+				bool match = false;
+
+				if (node->child_nodes[i]->value != NULL) {
+					match = true;
+				}
+				else {
+					int j;
+
+					for (j = 0; j < JX_NODE_CNT; j++) {
+						if (node->child_nodes[i]->child_nodes[j] != NULL) {
+							match = true;
+							break;
+						}
+					}
+				}
+
+				if (!match) {
+					free(node->child_nodes[i]);
+					node->child_nodes[i] = NULL;
+				}
+			}
+
+			return value;
+		}
+	}
+}
+
+bool jx_trie_iterate_keys(jx_trie_node * node, jx_value * str, jxd_iter_cb iter, void * ptr)
+{
+	int i;
+
+	if (node == NULL || str == NULL || iter == NULL) {
+		return false;
+	}
+
+	if (!jxs_push(str, node->byte)) {
+		return false;
+	}
+
+	if (node->value != NULL) {
+		char * key = jxs_get_str(str);
+
+		iter(key, node->value, ptr);
+	}
+
+	for (i = 0; i < JX_NODE_CNT; i++) {
+		if (node->child_nodes[i] != NULL) {
+			jx_trie_iterate_keys(node->child_nodes[i], str, iter, ptr);
+		}
+	}
+
+	jxs_pop(str);
+
+	return true;
+}
+
+void jx_trie_free_branch(jx_trie_node * node)
+{
+	int i;
+
+	if (node == NULL) {
+		return;
+	}
+
+	for (i = 0; i < JX_NODE_CNT; i++) {
+		if (node->child_nodes[i] != NULL) {
+			jx_trie_free_branch(node->child_nodes[i]);
+		}
+	}
+
+	if (node->value != NULL) {
+		jxv_free(node->value);
+	}
+
+	free(node);
+}
+
+jx_value * jxd_new()
+{
+	jx_value * value;
+
+	if ((value = jxv_new(JX_TYPE_OBJECT)) == NULL) {
+		return NULL;
+	}
+
+	if ((value->v.vp = calloc(1, sizeof(jx_trie_node))) == NULL) {
+		jxv_free(value);
+		return NULL;
+	}
+
+	return value;
+}
+
+bool jxd_set(jx_value * dict, char * key, jx_value * value)
+{
+	jx_trie_node * node;
+
+	if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL || value == NULL) {
+		return false;
+	}
+
+	node = jx_trie_add_key(dict->v.vp, (unsigned char *)key, 0);
+
+	if (node == NULL) {
+		return false;
+	}
+
+	if (node->value != NULL) {
+		jxv_free(node->value);
+	}
+
+	node->value = value;
+
+	return true;
+}
+
+jx_value * jxd_del(jx_value * dict, char * key)
+{
+	if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL) {
+		return NULL;
+	}
+
+	return jx_trie_del_key(dict->v.vp, (unsigned char * )key, 0);
+}
+
+jx_value * jxd_get(jx_value * dict, char * key)
+{
+	jx_trie_node * node;
+
+	if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL) {
+		return NULL;
+	}
+
+	node = jx_trie_get_key(dict->v.vp, (unsigned char * )key, 0);
+
+	if (node == NULL) {
+		return NULL;
+	}
+
+	return node->value;
+}
+
+bool jxd_has_key(jx_value * dict, char * key)
+{
+	return jxd_get(dict, key) != NULL;
+}
+
+jx_type jxd_get_type(jx_value * dict, char * key, bool * found)
+{
+	jx_value * value = jxd_get(dict, key);
+
+	if (found != NULL) {
+		*found = value != NULL;
+	}
+
+	return jxv_get_type(value);
+}
+
+bool jxd_set_number(jx_value * dict, char * key, double num)
+{
+	jx_value * value = jxv_number_new(num);
+
+	if (value == NULL) {
+		return false;
+	}
+
+	if (!jxd_set(dict, key, value)) {
+		jxv_free(value);
+		return false;
+	}
+
+	return true;
+}
+
+double jxd_get_number(jx_value * dict, char * key, bool * found)
+{
+	jx_value * value = jxd_get(dict, key);
+
+	if (found) {
+		*found = jxv_get_type(value) == JX_TYPE_NUMBER;
+	}
+
+	return jxv_get_number(value);
+}
+
+bool jxd_set_bool(jx_value * dict, char * key, bool value)
+{
+	return jxd_set(dict, key, jxv_bool_new(value));
+}
+
+bool jxd_get_bool(jx_value * dict, char * key, bool * found)
+{
+	jx_value * value = jxd_get(dict, key);
+
+	if (found) {
+		*found = jxv_get_type(value) == JX_TYPE_BOOL;
+	}
+
+	return jxv_get_bool(value);
+}
+
+bool jxd_set_string(jx_value * dict, char * key, char * value)
+{
+	jx_value * str = jxs_new(value);
+
+	if (!str) {
+		return false;
+	}
+
+	if (!jxd_set(dict, key, str)) {
+		jxv_free(str);
+		return false;
+	}
+
+	return true;
+}
+
+char * jxd_get_string(jx_value * dict, char * key, bool * found)
+{
+	jx_value * str = jxd_get(dict, key);
+
+	if (found) {
+		*found = jxv_get_type(str) == JX_TYPE_STRING;
+	}
+
+	return jxs_get_str(str);
+}
+
+bool jxd_iterate(jx_value * dict, jxd_iter_cb iter, void * ptr)
+{
+	bool success;
+
+	jx_value * str;
+
+	if (dict == NULL || dict->type != JX_TYPE_OBJECT || iter == NULL) {
+		return false;
+	}
+
+	str = jxs_new(NULL);
+
+	if (str == NULL) {
+		return false;
+	}
+
+	success = jx_trie_iterate_keys(dict->v.vp, str, iter, ptr);
+
+	jxv_free(str);
+
+	return success;
+}
+
 jx_value * jxv_number_new(double num)
 {
 	jx_value * value;
@@ -375,6 +745,10 @@ bool jxs_append_chr(jx_value * dst, char c)
 		return false;
 	}
 
+	if (c == '\0') {
+		return true;
+	}
+
 	if (dst->size < dst->length + 2) {
 		if (!jxs_resize(dst, dst->length + 2)) {
 			return false;
@@ -385,6 +759,29 @@ bool jxs_append_chr(jx_value * dst, char c)
 	((char*)dst->v.vp)[dst->length] = '\0';
 
 	return true;
+}
+
+bool jxs_push(jx_value * str, char c)
+{
+	return jxs_append_chr(str, c);
+}
+
+char jxs_pop(jx_value * str)
+{
+	char * ptr;
+	char c;
+
+	if (str == NULL || str->type != JX_TYPE_STRING || str->length == 0) {
+		return '\0';
+	}
+
+	ptr = (char *)str->v.vp;
+
+	c = ptr[--str->length];
+
+	ptr[str->length] = '\0';
+
+	return c;
 }
 
 jx_value * jxv_null()
@@ -429,6 +826,15 @@ jx_value * jxv_bool_new(bool value)
 	return (value) ? &val_true : &val_false;
 }
 
+bool jxv_get_bool(jx_value * value)
+{
+	if (value == NULL || value->type != JX_TYPE_BOOL) {
+		return false;
+	}
+
+	return value->v.vb;
+}
+
 void jxv_free(jx_value * value)
 {
 	jx_type type;
@@ -452,6 +858,9 @@ void jxv_free(jx_value * value)
 		}
 
 		free(value->v.vpp);
+	}
+	else if (type == JX_TYPE_OBJECT) {
+		jx_trie_free_branch(value->v.vp);
 	}
 	else if (type == JX_TYPE_NULL || type == JX_TYPE_BOOL) {
 		return;

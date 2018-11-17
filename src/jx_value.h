@@ -37,14 +37,22 @@ typedef enum
 	JX_TYPE_UNDEF,
 	JX_TYPE_NULL,
 	JX_TYPE_ARRAY,
+	JX_TYPE_OBJECT,
 	JX_TYPE_NUMBER,
 	JX_TYPE_BOOL,
 	JX_TYPE_STRING,
 	JX_TYPE_PTR
 } jx_type;
 
-#ifdef JXV_INTERNAL
-typedef struct
+
+struct jx_value_t;
+struct jx_trie_node_t;
+
+#ifdef JX_VALUE_INTERNAL
+
+#define JX_NODE_CNT 218
+
+typedef struct jx_value_t
 {
 	union {
 		bool vb;
@@ -58,10 +66,25 @@ typedef struct
 	size_t size;
 	size_t length;
 } jx_value;
+
+typedef struct jx_trie_node_t
+{
+	struct jx_trie_node_t * child_nodes[JX_NODE_CNT];
+
+	struct jx_value_t * value;
+
+	unsigned char byte;
+} jx_trie_node;
+
 #else
-struct jx_value;
-typedef struct jx_value jx_value;
+
+typedef struct jx_value_t jx_value;
+typedef struct jx_trie_node_t jx_trie_node;
+typedef struct jx_iter_t jx_iter;
+
 #endif
+
+typedef void (* jxd_iter_cb)(const char * key, jx_value * value, void * ptr);
 
 jx_type jxv_get_type(jx_value * value);
 jx_value * jxa_new(size_t capacity);
@@ -76,12 +99,31 @@ double jxa_get_number(jx_value * arr, size_t i);
 bool jxa_push_ptr(jx_value * array, void * ptr);
 void * jxa_get_ptr(jx_value * array, size_t i);
 void * jxv_get_ptr(jx_value * value);
+
+jx_value * jxd_new();
+bool jxd_set(jx_value * dict, char * key, jx_value * value);
+jx_value * jxd_del(jx_value * dict, char * key);
+jx_value * jxd_get(jx_value * dict, char * key);
+
+bool jxd_has_key(jx_value * dict, char * key);
+jx_type jxd_get_type(jx_value * dict, char * key, bool * found);
+bool jxd_set_number(jx_value * dict, char * key, double num);
+double jxd_get_number(jx_value * dict, char * key, bool * found);
+bool jxd_set_bool(jx_value * dict, char * key, bool value);
+bool jxd_get_bool(jx_value * dict, char * key, bool * found);
+bool jxd_set_string(jx_value * dict, char * key, char * value);
+char * jxd_get_string(jx_value * dict, char * key, bool * found);
+bool jxd_iterate(jx_value * dict, jxd_iter_cb iter, void * ptr);
+
 jx_value * jxv_number_new(double num);
 double jxv_get_number(jx_value * value);
+
 jx_value * jxs_new(const char * src);
 bool jxs_append_str(jx_value * dst, char * src);
 bool jxs_append_fmt(jx_value * dst, char * fmt, ...);
 bool jxs_append_chr(jx_value * dst, char c);
+bool jxs_push(jx_value * str, char c);
+char jxs_pop(jx_value * str);
 char * jxs_get_str(jx_value * str);
 jx_value * jxv_null();
 bool jxv_is_null(jx_value * value);
