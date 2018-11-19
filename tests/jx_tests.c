@@ -79,7 +79,32 @@ struct json_test
 	{ false, "[ \"\\u007f\" ] " },
 	{ false, "[ \x06 ]" },
 	{ false, "[ π ]" }, /* Enable extension JX_EXT_UTF8_PI */
-	{ false, "[ \x80\xcf ] " }
+	{ false, "[ \x80\xcf ] " },
+
+	{ true, "{}" },
+	{ true, "{ \"\" : \"\" }" },
+	{ true, "{ \"[}}{]][,[[[[[}}}\" : \",\\\"}[]][\" } " },
+	{ true, "{ \"π\" : 3.14159, \"boolean\": true, \"array\": [true, false, 0.1, \"\", {}], \"object\": {} }" },
+	{ true, "[ {}, { \"\" : \"\" }, { \"true\": true, \"false\": false, \"null\": null } ] " },
+
+	{ false, "{,}" },
+	{ false, "{:}" },
+	{ false, "{:,}" },
+	{ false, "{\":,5\":,}" },
+	{ false, "{\"\"::32}" },
+	{ false, "{ 34 : \"\" }" },
+	{ false, "{  : \"\" }" },
+	{ false, "{ \"\" : }" },
+	{ false, "{ \"\" : 34234, }" },
+	{ false, "{ \"\" \"\": \"\" }" },
+	{ false, "{ \"\" : \"\" \"\" }" },
+	{ false, "{ \"\" : \"\", \"\" }" },
+	{ false, "{ \"\" : \"\", [] }" },
+	{ false, "[1, 2, 3, } " },
+	{ false, "{ \"\": \"\" ] " },
+	{ false, "{" },
+	{ false, "{ \"\" " },
+	{ false, "{ \"\" : " }
 };
 
 void sum_func(jx_value * number, void * ptr)

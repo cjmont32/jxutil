@@ -39,28 +39,35 @@
 
 #include <jx_util.h>
 
-#define JX_ARRAY_STATE_DEFAULT       0
-#define JX_ARRAY_STATE_NEW_MEMBER    1
-#define JX_ARRAY_STATE_SEPARATOR     2
+#define JX_ARRAY_STATE_DEFAULT               0
+#define JX_ARRAY_STATE_NEW_MEMBER            1
+#define JX_ARRAY_STATE_SEPARATOR             2
 
-#define JX_NUM_IS_VALID              (1 << 0)
-#define JX_NUM_ACCEPT_SIGN           (1 << 1)
-#define JX_NUM_ACCEPT_DIGITS         (1 << 2)
-#define JX_NUM_ACCEPT_DEC_PT         (1 << 3)
-#define JX_NUM_ACCEPT_EXP            (1 << 4)
-#define JX_NUM_HAS_DIGITS            (1 << 5)
-#define JX_NUM_HAS_DEC_PT            (1 << 6)
-#define JX_NUM_HAS_EXP               (1 << 7)
-#define JX_NUM_DEFAULT               JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS
+#define JX_OBJ_STATE_ACCEPT_OPEN             (1 << 0)
+#define JX_OBJ_STATE_ACCEPT_KEY              (1 << 1)
+#define JX_OBJ_STATE_ACCEPT_KV_DELIMITER     (1 << 2)
+#define JX_OBJ_STATE_ACCEPT_VALUE            (1 << 3)
+#define JX_OBJ_STATE_ACCEPT_MEMBER_DELIMITER (1 << 4)
+#define JX_OBJ_STATE_ACCEPT_CLOSE            (1 << 5)
 
-#define JX_STRING_ESCAPE             (1 << 0)
-#define JX_STRING_UTF8               (1 << 1)
-#define JX_STRING_UNICODE            (1 << 2)
-#define JX_STRING_SURROGATE          (1 << 3)
-#define JX_STRING_END                (1 << 4)
+#define JX_NUM_IS_VALID                      (1 << 0)
+#define JX_NUM_ACCEPT_SIGN                   (1 << 1)
+#define JX_NUM_ACCEPT_DIGITS                 (1 << 2)
+#define JX_NUM_ACCEPT_DEC_PT                 (1 << 3)
+#define JX_NUM_ACCEPT_EXP                    (1 << 4)
+#define JX_NUM_HAS_DIGITS                    (1 << 5)
+#define JX_NUM_HAS_DEC_PT                    (1 << 6)
+#define JX_NUM_HAS_EXP                       (1 << 7)
+#define JX_NUM_DEFAULT                       JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS
 
-#define JX_DEFAULT_OBJECT_STACK_SIZE 8
-#define JX_DEFAULT_ARRAY_SIZE        8
+#define JX_STRING_ESCAPE                     (1 << 0)
+#define JX_STRING_UTF8                       (1 << 1)
+#define JX_STRING_UNICODE                    (1 << 2)
+#define JX_STRING_SURROGATE                  (1 << 3)
+#define JX_STRING_END                        (1 << 4)
+
+#define JX_DEFAULT_OBJECT_STACK_SIZE         8
+#define JX_DEFAULT_ARRAY_SIZE                8
 
 static const char * const jx_error_messages[JX_ERROR_GUARD] =
 {
@@ -69,9 +76,10 @@ static const char * const jx_error_messages[JX_ERROR_GUARD] =
 	"LIBC Error: errno: (%d), message: (%s).",
 	"Syntax Error [%lu:%lu]: Root value must be either an array or an object.",
 	"Syntax Error [%lu:%lu]: Illegal characters outside of root object, starting with (%c).",
-	"Syntax Error [%lu:%lu]: Missing token (%s).",
+	"Syntax Error [%lu:%lu]: Missing token, expected (%s).",
 	"Syntax Error [%lu:%lu]: Unexpected token (%s).",
 	"Syntax Error [%lu:%lu]: Illegal token (%s).",
+	"Syntax Error [%lu:%lu]: Illegal value type for key in object, member keys must be of type string.",
 	"Syntax Error [%lu:%lu]: Incomplete JSON object."
 };
 
@@ -111,6 +119,10 @@ void jx_free(jx_cntx * cntx)
 
 		if (frame->return_value != NULL) {
 			jxv_free(frame->return_value);
+		}
+
+		if (frame->key != NULL) {
+			jxv_free(frame->key);
 		}
 
 		jx_pop_mode(cntx);
@@ -500,11 +512,20 @@ jx_token jx_token_type(const char * src, long pos)
 	if (src[pos] == '[') {
 		return JX_TOKEN_ARRAY_BEGIN;
 	}
-	else if (src[pos] == ',') {
-		return JX_TOKEN_ARRAY_SEPARATOR;
-	}
 	else if (src[pos] == ']') {
 		return JX_TOKEN_ARRAY_END;
+	}
+	else if (src[pos] == '{') {
+		return JX_TOKEN_OBJ_BEGIN;
+	}
+	else if (src[pos] == '}') {
+		return JX_TOKEN_OBJ_END;
+	}
+	else if (src[pos] == ':') {
+		return JX_TOKEN_OBJ_KV_SEPARATOR;
+	}
+	else if (src[pos] == ',') {
+		return JX_TOKEN_MEMBER_SEPARATOR;
 	}
 	else if (src[pos] == '-' || (src[pos] >= '0' && src[pos] <= '9')) {
 		return JX_TOKEN_NUMBER;
@@ -548,6 +569,7 @@ bool jx_start_token(jx_token token)
 {
 	switch (token) {
 		case JX_TOKEN_ARRAY_BEGIN:
+		case JX_TOKEN_OBJ_BEGIN:
 		case JX_TOKEN_NUMBER:
 		case JX_TOKEN_STRING:
 		case JX_TOKEN_KEYWORD:
@@ -624,7 +646,7 @@ long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 	 * [ m,   # SEPARATOR STATE   - accept: member                           *
 	 * ]      # TERMINAL STATE    - return array to previous frame           *
 	 * ----------------------------------------------------------------------*/
-	if (token == JX_TOKEN_ARRAY_SEPARATOR) {
+	if (token == JX_TOKEN_MEMBER_SEPARATOR) {
 		if (jx_get_state(cntx) != JX_ARRAY_STATE_NEW_MEMBER) {
 			jx_set_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col, ",");
 			return -1;
@@ -674,6 +696,135 @@ long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 		}
 
 		*next_token = false;
+	}
+
+	return pos;
+}
+
+void jx_parse_obj_expected_token_error(jx_cntx * cntx)
+{
+	jx_state state;
+
+	char * expected_tokens = "";
+
+	if (cntx == NULL) {
+		return;
+	}
+
+	state = jx_get_state(cntx);
+
+	if (state & JX_OBJ_STATE_ACCEPT_KEY) {
+		expected_tokens = "string";
+	}
+	else if (state & JX_OBJ_STATE_ACCEPT_KV_DELIMITER) {
+		expected_tokens = ":";
+	}
+	else if (state & JX_OBJ_STATE_ACCEPT_VALUE) {
+		expected_tokens = "array, object, string, number, bool, nil";
+	}
+	else if (state & (JX_OBJ_STATE_ACCEPT_MEMBER_DELIMITER | JX_OBJ_STATE_ACCEPT_CLOSE)) {
+		expected_tokens = ", or }";
+	}
+
+	jx_set_error(cntx, JX_ERROR_EXPECTED_TOKEN, cntx->line, cntx->col, expected_tokens);
+}
+
+long jx_parse_object(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * find_next_token, bool * done)
+{
+	jx_frame * frame;
+	jx_value * value;
+
+	jx_token token;
+	jx_state state;
+
+	if (cntx == NULL || src == NULL || find_next_token == NULL || done == NULL || (frame = jx_top(cntx)) == NULL) {
+		return -1;
+	}
+
+	if (jx_get_mode(cntx) != JX_MODE_PARSE_OBJECT) {
+		return -1;
+	}
+
+	token = jx_token_type(src, pos);
+	state = jx_get_state(cntx);
+
+	if ((value = jx_get_return(cntx)) != NULL) {
+		if (state & JX_OBJ_STATE_ACCEPT_KEY) {
+			if (jxv_get_type(value) != JX_TYPE_STRING) {
+				jx_set_error(cntx, JX_ERROR_ILLEGAL_OBJ_KEY, cntx->line, cntx->col);
+				return -1;
+			}
+
+			frame->key = value;
+
+			jx_set_state(cntx, JX_OBJ_STATE_ACCEPT_KV_DELIMITER);
+
+			jx_set_return(cntx, NULL);
+		}
+		else if (state & JX_OBJ_STATE_ACCEPT_VALUE) {
+			jx_value * obj = jx_get_value(cntx);
+
+			char * key_str = jxs_get_str(frame->key);
+
+			if (!jxd_put(obj, key_str, value)) {
+				jx_set_error(cntx, JX_ERROR_LIBC);
+				return -1;
+			}
+
+			jxv_free(frame->key);
+
+			frame->key = NULL;
+
+			jx_set_state(cntx, JX_OBJ_STATE_ACCEPT_MEMBER_DELIMITER | JX_OBJ_STATE_ACCEPT_CLOSE);
+
+			jx_set_return(cntx, NULL);
+		}
+		else {
+			// The input string contains two values back to back without a delimter.
+			jx_parse_obj_expected_token_error(cntx);
+			return -1;
+		}
+	}
+
+	state = jx_get_state(cntx);
+
+	if (token == JX_TOKEN_OBJ_KV_SEPARATOR) {
+		if (!(state & JX_OBJ_STATE_ACCEPT_KV_DELIMITER)) {
+			jx_parse_obj_expected_token_error(cntx);
+			return -1;
+		}
+
+		jx_set_state(cntx, JX_OBJ_STATE_ACCEPT_VALUE);
+
+		pos++;
+		cntx->col++;
+
+		*find_next_token = true;
+	}
+	else if (token == JX_TOKEN_MEMBER_SEPARATOR) {
+		if (!(state & JX_OBJ_STATE_ACCEPT_MEMBER_DELIMITER)) {
+			jx_parse_obj_expected_token_error(cntx);
+			return -1;
+		}
+
+		jx_set_state(cntx, JX_OBJ_STATE_ACCEPT_KEY);
+
+		pos++;
+		cntx->col++;
+
+		*find_next_token = true;
+	}
+	else if (token == JX_TOKEN_OBJ_END) {
+		if (!(state & JX_OBJ_STATE_ACCEPT_CLOSE)) {
+			jx_parse_obj_expected_token_error(cntx);
+			return -1;
+		}
+
+		pos++;
+		cntx->col++;
+		cntx->depth--;
+
+		*done = true;
 	}
 
 	return pos;
@@ -1236,6 +1387,33 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 				continue;
 			}
 		}
+		else if (mode == JX_MODE_PARSE_OBJECT) {
+			bool find_next_token = false;
+			bool done = false;
+
+			pos = jx_parse_object(cntx, src, pos, end_pos, &find_next_token, &done);
+
+			if (pos == -1) {
+				return -1;
+			}
+
+			if (find_next_token) {
+				continue;
+			}
+
+			if (done) {
+				jx_value * obj = jx_get_value(cntx);
+
+				jx_pop_mode(cntx);
+				jx_set_return(cntx, obj);
+
+				if (jx_get_mode(cntx) == JX_MODE_START) {
+					jx_set_mode(cntx, JX_MODE_DONE);
+				}
+
+				continue;
+			}
+		}
 		else if (
 			mode == JX_MODE_PARSE_NUMBER ||
 			mode == JX_MODE_PARSE_STRING ||
@@ -1287,7 +1465,7 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 			return -1;
 		}
 
-		if (cntx->depth == 0 && token != JX_TOKEN_ARRAY_BEGIN) {
+		if (cntx->depth == 0 && !(token == JX_TOKEN_ARRAY_BEGIN || token == JX_TOKEN_OBJ_BEGIN)) {
 			jx_set_error(cntx, JX_ERROR_INVALID_ROOT, cntx->line, cntx->col);
 			return -1;
 		}
@@ -1308,6 +1486,29 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 			}
 
 			jx_set_value(cntx, array);
+
+			pos++;
+
+			cntx->col++;
+			cntx->depth++;
+		}
+		else if (token == JX_TOKEN_OBJ_BEGIN) {
+			jx_value * obj;
+
+			obj = jxd_new();
+
+			if (obj == NULL) {
+				jx_set_error(cntx, JX_ERROR_LIBC);
+				return -1;
+			}
+
+			if (!jx_push_mode(cntx, JX_MODE_PARSE_OBJECT)) {
+				jxv_free(obj);
+				return -1;
+			}
+
+			jx_set_value(cntx, obj);
+			jx_set_state(cntx, JX_OBJ_STATE_ACCEPT_KEY | JX_OBJ_STATE_ACCEPT_CLOSE);
 
 			pos++;
 
