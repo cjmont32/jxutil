@@ -112,6 +112,8 @@ typedef struct
 	size_t col;
 	size_t depth;
 
+	int tab_stop_width;
+
 	jx_value * object_stack;
 
 	uint16_t code[2];
@@ -125,6 +127,7 @@ typedef struct
 
 	bool inside_token;
 	bool find_next_token;
+	bool locked;
 
 	jx_ext_set ext;
 
@@ -158,6 +161,7 @@ jx_value * jx_get_return(jx_cntx * cntx);
 jx_error jx_get_error(jx_cntx * cntx);
 const char * const jx_get_error_message(jx_cntx * cntx);
 
+void jx_set_tab_stop_width(jx_cntx * cntx, int tab_width);
 void jx_set_extensions(jx_cntx * cntx, jx_ext_set ext);
 
 int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes);

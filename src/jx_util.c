@@ -98,6 +98,7 @@ jx_cntx * jx_new()
 
 	cntx->line = 1;
 	cntx->col = 1;
+	cntx->tab_stop_width = 4;
 
 	return cntx;
 }
@@ -172,9 +173,18 @@ const char * const jx_get_error_message(jx_cntx * cntx)
 	return cntx->error_msg;
 }
 
+void jx_set_tab_stop_width(jx_cntx * cntx, int tab_width)
+{
+	if (cntx == NULL || cntx->locked) {
+		return;
+	}
+
+	cntx->tab_stop_width = tab_width;
+}
+
 void jx_set_extensions(jx_cntx * cntx, jx_ext_set ext)
 {
-	if (cntx == NULL) {
+	if (cntx == NULL || cntx->locked) {
 		return;
 	}
 
@@ -473,6 +483,8 @@ bool jx_unicode_to_utf8(char out[5], int code_point)
 
 long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 {
+	int tab_width;
+
 	if (cntx == NULL) {
 		return -1;
 	}
@@ -481,13 +493,17 @@ long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 		return pos;
 	}
 
+	tab_width = cntx->tab_stop_width;
+
 	while (pos <= end_pos) {
 		if (src[pos] == ' ') {
 			cntx->col++;
 			pos++;
 		}
 		else if (src[pos] == '\t') {
-			cntx->col += 4;
+			while ((++cntx->col - 1) % tab_width)
+				;
+
 			pos++;
 		}
 		else if (src[pos] == '\n' || src[pos] == '\v') {
@@ -1433,6 +1449,8 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 	if (cntx->error != JX_ERROR_NONE) {
 		return -1;
 	}
+
+	cntx->locked = true;
 
 	if (jx_get_mode(cntx) == JX_MODE_UNDEFINED) {
 		if (!jx_push_mode(cntx, JX_MODE_START)) {
