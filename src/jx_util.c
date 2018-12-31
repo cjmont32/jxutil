@@ -487,7 +487,7 @@ long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 			pos++;
 		}
 		else if (src[pos] == '\t') {
-			cntx->col += 3;
+			cntx->col += 4;
 			pos++;
 		}
 		else if (src[pos] == '\n' || src[pos] == '\v') {
@@ -608,12 +608,12 @@ void jx_illegal_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
 	jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, token_name);
 }
 
-long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * next_token)
+long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
 {
 	jx_value * ret;
 	jx_token token;
 
-	if (cntx == NULL || src == NULL || next_token == NULL) {
+	if (cntx == NULL || src == NULL || done == NULL) {
 		return -1;
 	}
 
@@ -656,33 +656,23 @@ long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 
 		cntx->col++;
 
-		jx_set_state(cntx, JX_ARRAY_STATE_SEPARATOR);
+		cntx->find_next_token = true;
 
-		*next_token = true;
+		jx_set_state(cntx, JX_ARRAY_STATE_SEPARATOR);
 	}
 	else if (token == JX_TOKEN_ARRAY_END) {
-		jx_value * array;
-
 		if (jx_get_state(cntx) == JX_ARRAY_STATE_SEPARATOR) {
 			jx_set_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col, ",");
 			return -1;
 		}
 
-		array = jx_get_value(cntx);
-
-		jx_pop_mode(cntx);
-		jx_set_return(cntx, array);
-
 		pos++;
-
 		cntx->col++;
 		cntx->depth--;
 
-		if (jx_get_mode(cntx) == JX_MODE_START) {
-			jx_set_mode(cntx, JX_MODE_DONE);
-		}
+		cntx->find_next_token = true;
 
-		*next_token = true;
+		*done = true;
 	}
 	else {
 		if (token == JX_TOKEN_NONE) {
@@ -695,7 +685,7 @@ long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
 			return -1;
 		}
 
-		*next_token = false;
+		cntx->find_next_token = false;
 	}
 
 	return pos;
@@ -729,7 +719,7 @@ void jx_parse_obj_expected_token_error(jx_cntx * cntx)
 	jx_set_error(cntx, JX_ERROR_EXPECTED_TOKEN, cntx->line, cntx->col, expected_tokens);
 }
 
-long jx_parse_object(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * find_next_token, bool * done)
+long jx_parse_object(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
 {
 	jx_frame * frame;
 	jx_value * value;
@@ -737,7 +727,7 @@ long jx_parse_object(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 	jx_token token;
 	jx_state state;
 
-	if (cntx == NULL || src == NULL || find_next_token == NULL || done == NULL || (frame = jx_top(cntx)) == NULL) {
+	if (cntx == NULL || src == NULL || done == NULL || (frame = jx_top(cntx)) == NULL) {
 		return -1;
 	}
 
@@ -799,7 +789,7 @@ long jx_parse_object(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 		pos++;
 		cntx->col++;
 
-		*find_next_token = true;
+		cntx->find_next_token = true;
 	}
 	else if (token == JX_TOKEN_MEMBER_SEPARATOR) {
 		if (!(state & JX_OBJ_STATE_ACCEPT_MEMBER_DELIMITER)) {
@@ -812,7 +802,7 @@ long jx_parse_object(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 		pos++;
 		cntx->col++;
 
-		*find_next_token = true;
+		cntx->find_next_token = true;
 	}
 	else if (token == JX_TOKEN_OBJ_END) {
 		if (!(state & JX_OBJ_STATE_ACCEPT_CLOSE)) {
@@ -823,6 +813,8 @@ long jx_parse_object(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 		pos++;
 		cntx->col++;
 		cntx->depth--;
+
+		cntx->find_next_token = true;
 
 		*done = true;
 	}
@@ -1340,6 +1332,92 @@ long jx_parse_utf8(jx_cntx * cntx, const char * src, long pos, long end_pos, boo
 	return pos;
 }
 
+long jx_parse_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
+{
+	jx_mode mode;
+
+	if (cntx == NULL || src == NULL) {
+		return -1;
+	}
+
+	mode = jx_get_mode(cntx);
+
+	if (mode == JX_MODE_PARSE_ARRAY || mode == JX_MODE_PARSE_OBJECT) {
+		bool done = false;
+
+		switch (mode) {
+			case JX_MODE_PARSE_ARRAY:
+				pos = jx_parse_array(cntx, src, pos, end_pos, &done);
+				break;
+			case JX_MODE_PARSE_OBJECT:
+				pos = jx_parse_object(cntx, src, pos, end_pos, &done);
+				break;
+			default:
+				break;
+		}
+
+		if (pos == -1) {
+			return -1;
+		}
+
+		if (done) {
+			jx_value * obj = jx_get_value(cntx);
+
+			jx_pop_mode(cntx);
+			jx_set_return(cntx, obj);
+
+			if (jx_get_mode(cntx) == JX_MODE_START) {
+				jx_set_mode(cntx, JX_MODE_DONE);
+			}
+		}
+	}
+	else if (
+		mode == JX_MODE_PARSE_NUMBER ||
+		mode == JX_MODE_PARSE_STRING ||
+		mode == JX_MODE_PARSE_KEYWORD ||
+		mode == JX_MODE_PARSE_UTF8) {
+		bool done = false;
+
+		switch (mode) {
+			case JX_MODE_PARSE_NUMBER:
+				pos = jx_parse_number(cntx, src, pos, end_pos, &done);
+				break;
+			case JX_MODE_PARSE_STRING:
+				pos = jx_parse_string(cntx, src, pos, end_pos, &done);
+				break;
+			case JX_MODE_PARSE_KEYWORD:
+				pos = jx_parse_keyword(cntx, src, pos, end_pos, &done);
+				break;
+			case JX_MODE_PARSE_UTF8:
+				pos = jx_parse_utf8(cntx, src, pos, end_pos, &done);
+				break;
+			default:
+				break;
+		}
+
+		if (pos == -1) {
+			return -1;
+		}
+
+		if (done) {
+			jx_value * v = jx_get_value(cntx);
+
+			jx_pop_mode(cntx);
+			jx_set_return(cntx, v);
+
+			cntx->inside_token = false;
+		}
+
+		cntx->find_next_token = true;
+	}
+	else if (mode == JX_MODE_DONE) {
+		jx_set_error(cntx, JX_ERROR_TRAILING_CHARS, cntx->line, cntx->col, src[pos]);
+		return -1;
+	}
+
+	return pos;
+}
+
 int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 {
 	long pos;
@@ -1374,88 +1452,21 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 
 		mode = jx_get_mode(cntx);
 
-		if (mode == JX_MODE_PARSE_ARRAY) {
-			bool next_token = false;
-
-			pos = jx_parse_array(cntx, src, pos, end_pos, &next_token);
+		if (mode != JX_MODE_START) {
+			pos = jx_parse_token(cntx, src, pos, end_pos);
 
 			if (pos == -1) {
 				return -1;
 			}
 
-			if (next_token) {
+			/* If jx_parse_token handled the current token, or it has popped an object off the
+			 * stack, find_next_token will be true, and we should continue in order to handle
+			 * the next unprocessed token in the stream; otherwise this token will be treated
+			 * as delimiting a new object, and is handled below. */
+			if (cntx->find_next_token) {
+				cntx->find_next_token = false;
 				continue;
 			}
-		}
-		else if (mode == JX_MODE_PARSE_OBJECT) {
-			bool find_next_token = false;
-			bool done = false;
-
-			pos = jx_parse_object(cntx, src, pos, end_pos, &find_next_token, &done);
-
-			if (pos == -1) {
-				return -1;
-			}
-
-			if (find_next_token) {
-				continue;
-			}
-
-			if (done) {
-				jx_value * obj = jx_get_value(cntx);
-
-				jx_pop_mode(cntx);
-				jx_set_return(cntx, obj);
-
-				if (jx_get_mode(cntx) == JX_MODE_START) {
-					jx_set_mode(cntx, JX_MODE_DONE);
-				}
-
-				continue;
-			}
-		}
-		else if (
-			mode == JX_MODE_PARSE_NUMBER ||
-			mode == JX_MODE_PARSE_STRING ||
-			mode == JX_MODE_PARSE_KEYWORD ||
-			mode == JX_MODE_PARSE_UTF8) {
-			bool done = false;
-
-			switch (mode) {
-				case JX_MODE_PARSE_NUMBER:
-					pos = jx_parse_number(cntx, src, pos, end_pos, &done);
-					break;
-				case JX_MODE_PARSE_STRING:
-					pos = jx_parse_string(cntx, src, pos, end_pos, &done);
-					break;
-				case JX_MODE_PARSE_KEYWORD:
-					pos = jx_parse_keyword(cntx, src, pos, end_pos, &done);
-					break;
-				case JX_MODE_PARSE_UTF8:
-					pos = jx_parse_utf8(cntx, src, pos, end_pos, &done);
-					break;
-				default:
-					break;
-			}
-
-			if (pos == -1) {
-				return -1;
-			}
-
-			if (done) {
-				jx_value * v = jx_get_value(cntx);
-
-				jx_pop_mode(cntx);
-				jx_set_return(cntx, v);
-
-				cntx->inside_token = false;
-			}
-
-			continue;
-		}
-		else if (mode == JX_MODE_DONE) {
-			jx_set_error(cntx, JX_ERROR_TRAILING_CHARS, cntx->line, cntx->col, src[pos]);
-			return -1;
 		}
 
 		token = jx_token_type(src, pos);
@@ -1520,9 +1531,9 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
 				return -1;
 			}
 
-			cntx->inside_token = true;
-
 			jx_set_state(cntx, JX_NUM_DEFAULT);
+
+			cntx->inside_token = true;
 		}
 		else if (token == JX_TOKEN_STRING) {
 			jx_value * str;

@@ -124,6 +124,7 @@ typedef struct
 	int uni_tok_len, uni_tok_i;
 
 	bool inside_token;
+	bool find_next_token;
 
 	jx_ext_set ext;
 
