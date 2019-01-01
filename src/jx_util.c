@@ -39,35 +39,35 @@
 
 #include <jx_util.h>
 
-#define JX_ARRAY_STATE_DEFAULT               0
-#define JX_ARRAY_STATE_NEW_MEMBER            1
-#define JX_ARRAY_STATE_SEPARATOR             2
+#define JX_ARRAY_STATE_DEFAULT					0
+#define JX_ARRAY_STATE_NEW_MEMBER				1
+#define JX_ARRAY_STATE_SEPARATOR 				2
 
-#define JX_OBJ_STATE_ACCEPT_OPEN             (1 << 0)
-#define JX_OBJ_STATE_ACCEPT_KEY              (1 << 1)
-#define JX_OBJ_STATE_ACCEPT_KV_DELIMITER     (1 << 2)
-#define JX_OBJ_STATE_ACCEPT_VALUE            (1 << 3)
-#define JX_OBJ_STATE_ACCEPT_MEMBER_DELIMITER (1 << 4)
-#define JX_OBJ_STATE_ACCEPT_CLOSE            (1 << 5)
+#define JX_OBJ_STATE_ACCEPT_OPEN				(1 << 0)
+#define JX_OBJ_STATE_ACCEPT_KEY					(1 << 1)
+#define JX_OBJ_STATE_ACCEPT_KV_DELIMITER		(1 << 2)
+#define JX_OBJ_STATE_ACCEPT_VALUE				(1 << 3)
+#define JX_OBJ_STATE_ACCEPT_MEMBER_DELIMITER	(1 << 4)
+#define JX_OBJ_STATE_ACCEPT_CLOSE				(1 << 5)
 
-#define JX_NUM_IS_VALID                      (1 << 0)
-#define JX_NUM_ACCEPT_SIGN                   (1 << 1)
-#define JX_NUM_ACCEPT_DIGITS                 (1 << 2)
-#define JX_NUM_ACCEPT_DEC_PT                 (1 << 3)
-#define JX_NUM_ACCEPT_EXP                    (1 << 4)
-#define JX_NUM_HAS_DIGITS                    (1 << 5)
-#define JX_NUM_HAS_DEC_PT                    (1 << 6)
-#define JX_NUM_HAS_EXP                       (1 << 7)
-#define JX_NUM_DEFAULT                       JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS
+#define JX_NUM_IS_VALID							(1 << 0)
+#define JX_NUM_ACCEPT_SIGN						(1 << 1)
+#define JX_NUM_ACCEPT_DIGITS					(1 << 2)
+#define JX_NUM_ACCEPT_DEC_PT					(1 << 3)
+#define JX_NUM_ACCEPT_EXP						(1 << 4)
+#define JX_NUM_HAS_DIGITS						(1 << 5)
+#define JX_NUM_HAS_DEC_PT						(1 << 6)
+#define JX_NUM_HAS_EXP							(1 << 7)
+#define JX_NUM_DEFAULT							JX_NUM_ACCEPT_SIGN | JX_NUM_ACCEPT_DIGITS
 
-#define JX_STRING_ESCAPE                     (1 << 0)
-#define JX_STRING_UTF8                       (1 << 1)
-#define JX_STRING_UNICODE                    (1 << 2)
-#define JX_STRING_SURROGATE                  (1 << 3)
-#define JX_STRING_END                        (1 << 4)
+#define JX_STRING_ESCAPE						(1 << 0)
+#define JX_STRING_UTF8							(1 << 1)
+#define JX_STRING_UNICODE						(1 << 2)
+#define JX_STRING_SURROGATE						(1 << 3)
+#define JX_STRING_END							(1 << 4)
 
-#define JX_DEFAULT_OBJECT_STACK_SIZE         8
-#define JX_DEFAULT_ARRAY_SIZE                8
+#define JX_DEFAULT_OBJECT_STACK_SIZE			8
+#define JX_DEFAULT_ARRAY_SIZE					8
 
 static const char * const jx_error_messages[JX_ERROR_GUARD] =
 {
@@ -1114,8 +1114,8 @@ long jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 	while (pos <= end_pos) {
 		if (state & JX_STRING_ESCAPE) {
 			if (buf[pos] != 'u' && (state & JX_STRING_SURROGATE)) {
-				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
-					"invalid unicode character in string");
+				jx_set_error(	cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+								"invalid unicode character in string");
 
 				return -1;
 			}
@@ -1145,8 +1145,8 @@ long jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 					state |= JX_STRING_UNICODE;
 					break;
 				default:
-					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
-						"unrecognized escape sequence");
+					jx_set_error(	cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+									"unrecognized escape sequence");
 
 					return -1;
 			}
@@ -1156,8 +1156,8 @@ long jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 		else if (state & JX_STRING_UTF8) {
 			while (pos <= end_pos) {
 				if ((buf[pos] & 0xC0) != 0x80) {
-					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
-						"illegal character in string");
+					jx_set_error(	cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+									"illegal character in string");
 					return -1;
 				}
 
@@ -1193,8 +1193,8 @@ long jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 		}
 		else {
 			if (buf[pos] != '\\' && (state & JX_STRING_SURROGATE)) {
-				jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
-					"invalid unicode character in string");
+				jx_set_error(	cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+								"invalid unicode character in string");
 
 				return -1;
 			}
@@ -1206,8 +1206,8 @@ long jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 				int len = jx_utf8_length(buf + pos);
 
 				if (len == -1) {
-					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
-						"illegal character in string");
+					jx_set_error(	cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+									"illegal character in string");
 					return -1;
 				}
 
@@ -1229,8 +1229,8 @@ long jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, b
 					jxs_append_chr(str, buf[pos]);
 				}
 				else {
-					jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
-						"control character in string");
+					jx_set_error(	cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col,
+									"control character in string");
 					return -1;
 				}
 			}

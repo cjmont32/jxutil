@@ -44,7 +44,6 @@ typedef enum
 	JX_TYPE_PTR
 } jx_type;
 
-
 struct jx_value_t;
 struct jx_trie_node_t;
 
