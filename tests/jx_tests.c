@@ -206,16 +206,96 @@ bool execute_muli_part_parse_test()
 	return true;
 }
 
-bool strings_test()
+jx_value * parse_json_from_file(const char * filename)
 {
 	jx_cntx * cntx;
+
+	jx_value * obj;
+
+	if ((cntx = jx_new()) == NULL) {
+		fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
+		return NULL;
+	}
+
+	obj = jx_obj_from_file(cntx, filename);
+
+	if (obj == NULL) {
+		if (jx_get_error(cntx) == JX_ERROR_LIBC) {
+			fprintf(stderr, "Error reading file [%s]\n", strerror(errno));
+
+			if (errno == ENOENT) {
+				printf("Hint: Try again from the root of the project tree.\n");
+			}
+		}
+		else {
+			fprintf(stderr, "%s\n", jx_get_error_message(cntx));
+		}
+	}
+
+	jx_free(cntx);
+
+	return obj;
+}
+
+jx_value * parse_json_from_file2(const char * filename)
+{
+	jx_cntx * cntx;
+	jx_value * object;
+
+	int fd, bytes_read;
+
+	char buf[2048];
+
+	if ((fd = open(filename, O_RDONLY)) == -1 && errno == ENOENT) {
+		printf("Error: %s\n", strerror(errno));
+		printf("Hint: Try again from the root of the project tree.\n");
+		return NULL;
+	}
+
+	if (fd == -1) {
+		printf("%s\n", strerror(errno));
+		return NULL;
+	}
+
+	if ((cntx = jx_new()) == NULL) {
+		fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
+		return NULL;
+	}
+
+	while ((bytes_read = read(fd, buf, 2048)) > 0) {
+		char * ptr = buf;
+
+		// Feed json to parser one-byte at a time as a stress test
+		// BAD practice in general
+		while (bytes_read--) {
+			jx_parse_json(cntx, ptr++, 1);
+		}
+	}
+
+	if (bytes_read == -1) {
+		jx_free(cntx);
+		close(fd);
+		fprintf(stderr, "Error reading file: %s\n", strerror(errno));
+		return NULL;
+	}
+
+	object = jx_get_result(cntx);
+
+	if (object == NULL) {
+		fprintf(stderr, "%s\n", jx_get_error_message(cntx));
+	}
+
+	jx_free(cntx);
+
+	return object;
+}
+
+bool strings_test()
+{
 	jx_value * arr;
 
-	int fd, bytes_read, i, max;
-
+	int i, max;
 	bool success;
-
-	char buf[32];
 
 	const char * string_tests[] = {
 		"",
@@ -234,41 +314,7 @@ bool strings_test()
 
 	printf("Testing parsing array of strings:\n");
 
-	fd = open("tests/json/strings.json", O_RDONLY);
-
-	if (fd == -1 && errno == ENOENT) {
-		printf("Error: %s\n", strerror(errno));
-		printf("Hint: Try again from the root of the project tree.\n");
-		return false;
-	}
-
-	if (fd == -1) {
-		printf("%s\n", strerror(errno));
-		return false;
-	}
-
-	if ((cntx = jx_new()) == NULL) {
-		fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
-		return false;
-	}
-
-	while ((bytes_read = read(fd, buf, 32)) > 0) {
-		if (jx_parse_json(cntx, buf, bytes_read) == -1) {
-			break;
-		}
-	}
-
-	close(fd);
-
-	if (bytes_read == -1) {
-		printf("%s\n", strerror(errno));
-		jx_free(cntx);
-		return false;
-	}
-
-	if ((arr = jx_get_result(cntx)) == NULL) {
-		fprintf(stderr, "%s\n", jx_get_error_message(cntx));
-		jx_free(cntx);
+	if ((arr = parse_json_from_file("tests/json/strings.json")) == NULL) {
 		return false;
 	}
 
@@ -283,27 +329,26 @@ bool strings_test()
 		if (str == NULL) {
 			fprintf(stderr, "Error: Non-string type found in array.\n");
 			success = false;
-			goto cleanup;
+			break;
 		}
 
 		if (i > max) {
 			fprintf(stderr, "Errno: string at index %d not found in test strings [%s].\n", i, str);
 			success = false;
-			goto cleanup;
+			break;
 		}
 
 		if (strcmp(string_tests[i], str) != 0) {
 			fprintf(stderr, "Error: Strings didn't match [%s:%s].\n", string_tests[i], str);
 			success = false;
-			goto cleanup;
+			break;
 		}
 	}
 
-	printf("All strings passed\n");
+	if (success)
+		printf("All strings passed\n");
 
-cleanup:
 	jxv_free(arr);
-	jx_free(cntx);
 
 	return success;
 }
@@ -394,6 +439,12 @@ bool execute_simple_tests()
 
 bool run_tests()
 {
+	if (!execute_simple_tests()) {
+		return false;
+	}
+
+	printf("\n");
+
 	if (!strings_test()) {
 		return false;
 	}
@@ -407,12 +458,6 @@ bool run_tests()
 	printf("\n");
 
 	if (!execute_ext_utf8_pi_test()) {
-		return false;
-	}
-
-	printf("\n");
-
-	if (!execute_simple_tests()) {
 		return false;
 	}
 
