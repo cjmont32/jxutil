@@ -34,14 +34,14 @@
 
 typedef enum
 {
-	JX_TYPE_UNDEF,
-	JX_TYPE_NULL,
-	JX_TYPE_ARRAY,
-	JX_TYPE_OBJECT,
-	JX_TYPE_NUMBER,
-	JX_TYPE_BOOL,
-	JX_TYPE_STRING,
-	JX_TYPE_PTR
+    JX_TYPE_UNDEF,
+    JX_TYPE_NULL,
+    JX_TYPE_ARRAY,
+    JX_TYPE_OBJECT,
+    JX_TYPE_NUMBER,
+    JX_TYPE_BOOL,
+    JX_TYPE_STRING,
+    JX_TYPE_PTR
 } jx_type;
 
 struct jx_value_t;
@@ -51,26 +51,26 @@ struct jx_trie_node_t;
 
 typedef struct jx_value_t
 {
-	union {
-		bool vb;
-		double vf;
-		void * vp;
-		void ** vpp;
-	} v;
+    union {
+        bool vb;
+        double vf;
+        void * vp;
+        void ** vpp;
+    } v;
 
-	jx_type type;
+    jx_type type;
 
-	size_t size;
-	size_t length;
+    size_t size;
+    size_t length;
 } jx_value;
 
 typedef struct jx_trie_node_t
 {
-	struct jx_trie_node_t * child_nodes[16];
+    struct jx_trie_node_t * child_nodes[16];
 
-	struct jx_value_t * value;
+    struct jx_value_t * value;
 
-	char byte;
+    char byte;
 } jx_trie_node;
 
 #else

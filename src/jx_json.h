@@ -36,59 +36,59 @@
 
 #include <jx_value.h>
 
-#define JX_EXT_NONE 	0
-#define JX_EXT_UTF8_PI	(1 << 0)
+#define JX_EXT_NONE     0
+#define JX_EXT_UTF8_PI  (1 << 0)
 
 typedef int jx_state;
 typedef unsigned int jx_ext_set;
 
 typedef enum
 {
-	JX_ERROR_NONE,
-	JX_ERROR_INVALID_CONTEXT,
-	JX_ERROR_LIBC,
-	JX_ERROR_INVALID_ROOT,
-	JX_ERROR_TRAILING_CHARS,
-	JX_ERROR_EXPECTED_TOKEN,
-	JX_ERROR_UNEXPECTED_TOKEN,
-	JX_ERROR_ILLEGAL_TOKEN,
-	JX_ERROR_ILLEGAL_OBJ_KEY,
-	JX_ERROR_INCOMPLETE_OBJECT,
-	JX_ERROR_GUARD
+    JX_ERROR_NONE,
+    JX_ERROR_INVALID_CONTEXT,
+    JX_ERROR_LIBC,
+    JX_ERROR_INVALID_ROOT,
+    JX_ERROR_TRAILING_CHARS,
+    JX_ERROR_EXPECTED_TOKEN,
+    JX_ERROR_UNEXPECTED_TOKEN,
+    JX_ERROR_ILLEGAL_TOKEN,
+    JX_ERROR_ILLEGAL_OBJ_KEY,
+    JX_ERROR_INCOMPLETE_OBJECT,
+    JX_ERROR_GUARD
 } jx_error;
 
 typedef enum
 {
-	JX_MODE_UNDEFINED,
-	JX_MODE_START,
-	JX_MODE_PARSE_ARRAY,
-	JX_MODE_PARSE_OBJECT,
-	JX_MODE_PARSE_NUMBER,
-	JX_MODE_PARSE_STRING,
-	JX_MODE_PARSE_KEYWORD,
-	JX_MODE_PARSE_UTF8,
-	JX_MODE_DONE
+    JX_MODE_UNDEFINED,
+    JX_MODE_START,
+    JX_MODE_PARSE_ARRAY,
+    JX_MODE_PARSE_OBJECT,
+    JX_MODE_PARSE_NUMBER,
+    JX_MODE_PARSE_STRING,
+    JX_MODE_PARSE_KEYWORD,
+    JX_MODE_PARSE_UTF8,
+    JX_MODE_DONE
 } jx_mode;
 
 typedef enum
 {
-	JX_TOKEN_NONE,
-	JX_TOKEN_ARRAY_BEGIN,
-	JX_TOKEN_ARRAY_END,
-	JX_TOKEN_OBJ_BEGIN,
-	JX_TOKEN_OBJ_END,
-	JX_TOKEN_OBJ_KV_SEPARATOR,
-	JX_TOKEN_MEMBER_SEPARATOR,
-	JX_TOKEN_NUMBER,
-	JX_TOKEN_STRING,
-	JX_TOKEN_KEYWORD,
-	JX_TOKEN_UNICODE
+    JX_TOKEN_NONE,
+    JX_TOKEN_ARRAY_BEGIN,
+    JX_TOKEN_ARRAY_END,
+    JX_TOKEN_OBJ_BEGIN,
+    JX_TOKEN_OBJ_END,
+    JX_TOKEN_OBJ_KV_SEPARATOR,
+    JX_TOKEN_MEMBER_SEPARATOR,
+    JX_TOKEN_NUMBER,
+    JX_TOKEN_STRING,
+    JX_TOKEN_KEYWORD,
+    JX_TOKEN_UNICODE
 } jx_token;
 
 typedef enum
 {
-	JX_UNI_UNSUPPORTED,
-	JX_UNI_LOWER_PI
+    JX_UNI_UNSUPPORTED,
+    JX_UNI_LOWER_PI
 } jx_utoken;
 
 #ifdef JX_INTERNAL
@@ -98,43 +98,43 @@ typedef enum
 
 typedef struct
 {
-	jx_value * value;
-	jx_value * return_value;
-	jx_value * key;
+    jx_value * value;
+    jx_value * return_value;
+    jx_value * key;
 
-	jx_state state;
+    jx_state state;
 
-	jx_mode mode;
+    jx_mode mode;
 } jx_frame;
 
 typedef struct
 {
-	size_t line;
-	size_t col;
-	size_t depth;
-	size_t read_buffer_size;
+    size_t line;
+    size_t col;
+    size_t depth;
+    size_t read_buffer_size;
 
-	int tab_stop_width;
+    int tab_stop_width;
 
-	jx_value * object_stack;
+    jx_value * object_stack;
 
-	uint16_t code[2];
-	int code_index, shifts;
+    uint16_t code[2];
+    int code_index, shifts;
 
-	char tok_buf[JX_TOKEN_BUF_SIZE];
-	int tok_buf_pos;
+    char tok_buf[JX_TOKEN_BUF_SIZE];
+    int tok_buf_pos;
 
-	char uni_tok[5];
-	int uni_tok_len, uni_tok_i;
+    char uni_tok[5];
+    int uni_tok_len, uni_tok_i;
 
-	bool inside_token;
-	bool find_next_token;
-	bool locked;
+    bool inside_token;
+    bool find_next_token;
+    bool locked;
 
-	jx_ext_set ext;
+    jx_ext_set ext;
 
-	char error_msg[JX_ERROR_BUF_MAX_SIZE];
-	jx_error error;
+    char error_msg[JX_ERROR_BUF_MAX_SIZE];
+    jx_error error;
 } jx_cntx;
 #else
 struct jx_cntx;

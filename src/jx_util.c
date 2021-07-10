@@ -43,87 +43,87 @@
 
 ssize_t jx_read(jx_cntx * cntx, int fd, size_t n_bytes)
 {
-	long n_read;
-	char * buf;
+    long n_read;
+    char * buf;
 
-	if (n_bytes == 0) {
-		return -1;
-	}
+    if (n_bytes == 0) {
+        return -1;
+    }
 
-	if (n_bytes > JX_MAX_READ_BUF_SIZE) {
-		n_bytes = JX_MAX_READ_BUF_SIZE;
-	}
+    if (n_bytes > JX_MAX_READ_BUF_SIZE) {
+        n_bytes = JX_MAX_READ_BUF_SIZE;
+    }
 
-	buf = alloca(n_bytes);
+    buf = alloca(n_bytes);
 
-	n_read = read(fd, buf, n_bytes);
+    n_read = read(fd, buf, n_bytes);
 
-	if (n_read == -1) {
-		if (errno != EAGAIN && errno != EINTR) {
-			jx_set_error(cntx, JX_ERROR_LIBC);
-			return -2;
-		}
+    if (n_read == -1) {
+        if (errno != EAGAIN && errno != EINTR) {
+            jx_set_error(cntx, JX_ERROR_LIBC);
+            return -2;
+        }
 
-		return -1;
-	}
+        return -1;
+    }
 
-	if (n_read == 0)
-		return 0;
+    if (n_read == 0)
+        return 0;
 
-	if (jx_parse_json(cntx, buf, n_read) == -1) {
-		return -2;
-	}
+    if (jx_parse_json(cntx, buf, n_read) == -1) {
+        return -2;
+    }
 
-	return n_read;
+    return n_read;
 }
 
 ssize_t jx_read_block(jx_cntx * cntx, int fd, ssize_t n_bytes)
 {
-	ssize_t n_remaining, n_read;
+    ssize_t n_remaining, n_read;
 
-	if (n_bytes <= 0)
-		return -1;
+    if (n_bytes <= 0)
+        return -1;
 
-	n_remaining = n_bytes;
+    n_remaining = n_bytes;
 
-	do {
-		n_read = jx_read(cntx, fd, (n_remaining < JX_RB_SIZE) ? n_remaining : JX_RB_SIZE);
+    do {
+        n_read = jx_read(cntx, fd, (n_remaining < JX_RB_SIZE) ? n_remaining : JX_RB_SIZE);
 
-		if (n_read > 0) {
-			n_remaining -= n_read;
+        if (n_read > 0) {
+            n_remaining -= n_read;
 
-			if (n_remaining == 0) {
-				break;
-			}
-		}
-	} while (n_read > 0);
+            if (n_remaining == 0) {
+                break;
+            }
+        }
+    } while (n_read > 0);
 
-	return n_bytes - n_remaining;
+    return n_bytes - n_remaining;
 }
 
 jx_value * jx_obj_from_file(jx_cntx * cntx, const char * filename)
 {
-	int fd, n_read;
+    int fd, n_read;
 
-	if ((fd = open(filename, O_RDONLY)) == -1) {
-		jx_set_error(cntx, JX_ERROR_LIBC);
-		return NULL;
-	}
+    if ((fd = open(filename, O_RDONLY)) == -1) {
+        jx_set_error(cntx, JX_ERROR_LIBC);
+        return NULL;
+    }
 
-	do {
-		n_read = jx_read(cntx, fd, JX_RB_SIZE);
-	} while (n_read > 0);
+    do {
+        n_read = jx_read(cntx, fd, JX_RB_SIZE);
+    } while (n_read > 0);
 
-	close(fd);
+    close(fd);
 
-	if (n_read < 0) {
-		return NULL;
-	}
+    if (n_read < 0) {
+        return NULL;
+    }
 
-	return jx_get_result(cntx);
+    return jx_get_result(cntx);
 }
 
 void jx_set_read_buffer_size(jx_cntx * cntx, size_t sz)
 {
-	cntx->read_buffer_size = sz;
+    cntx->read_buffer_size = sz;
 }

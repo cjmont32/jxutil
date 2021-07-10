@@ -40,237 +40,237 @@
 
 jx_type jxv_get_type(jx_value * value)
 {
-	if (value == NULL) {
-		return JX_TYPE_UNDEF;
-	}
+    if (value == NULL) {
+        return JX_TYPE_UNDEF;
+    }
 
-	return value->type;
+    return value->type;
 }
 
 jx_value * jxv_new(jx_type type)
 {
-	jx_value * value;
+    jx_value * value;
 
-	if ((value = calloc(1, sizeof(jx_value))) == NULL) {
-		return NULL;
-	}
+    if ((value = calloc(1, sizeof(jx_value))) == NULL) {
+        return NULL;
+    }
 
-	value->type = type;
+    value->type = type;
 
-	return value;
+    return value;
 }
 
 jx_value * jxa_new(size_t capacity)
 {
-	jx_value * array;
+    jx_value * array;
 
-	if ((array = jxv_new(JX_TYPE_ARRAY)) == NULL) {
-		return NULL;
-	}
+    if ((array = jxv_new(JX_TYPE_ARRAY)) == NULL) {
+        return NULL;
+    }
 
-	if ((array->v.vpp = malloc(sizeof(jx_value *) * capacity)) == NULL) {
-		free(array);
-		return NULL;
-	}
+    if ((array->v.vpp = malloc(sizeof(jx_value *) * capacity)) == NULL) {
+        free(array);
+        return NULL;
+    }
 
-	array->size = capacity;
+    array->size = capacity;
 
-	return array;
+    return array;
 }
 
 size_t jxa_get_length(jx_value * array)
 {
-	if (array == NULL || array->type != JX_TYPE_ARRAY) {
-		return 0;
-	}
+    if (array == NULL || array->type != JX_TYPE_ARRAY) {
+        return 0;
+    }
 
-	return array->length;
+    return array->length;
 }
 
 jx_type jxa_get_type(jx_value * array, size_t i)
 {
-	jx_value * value;
+    jx_value * value;
 
-	if ((value = jxa_get(array, i)) == NULL) {
-		return JX_TYPE_UNDEF;
-	}
+    if ((value = jxa_get(array, i)) == NULL) {
+        return JX_TYPE_UNDEF;
+    }
 
-	return value->type;
+    return value->type;
 }
 
 jx_value * jxa_get(jx_value * array, size_t i)
 {
-	if (array == NULL || array->type != JX_TYPE_ARRAY || i >= array->length) {
-		return NULL;
-	}
+    if (array == NULL || array->type != JX_TYPE_ARRAY || i >= array->length) {
+        return NULL;
+    }
 
-	return array->v.vpp[i];
+    return array->v.vpp[i];
 }
 
 bool jxa_push(jx_value * array, jx_value * value)
 {
-	if (array == NULL || array->type != JX_TYPE_ARRAY) {
-		return false;
-	}
+    if (array == NULL || array->type != JX_TYPE_ARRAY) {
+        return false;
+    }
 
-	if (array->length == array->size) {
-		void ** newArray;
-		size_t newSize;
+    if (array->length == array->size) {
+        void ** newArray;
+        size_t newSize;
 
-		newSize = array->size * 2;
-		newArray = realloc(array->v.vpp, sizeof(jx_value *) * newSize);
+        newSize = array->size * 2;
+        newArray = realloc(array->v.vpp, sizeof(jx_value *) * newSize);
 
-		if (newArray == NULL) {
-			return false;
-		}
+        if (newArray == NULL) {
+            return false;
+        }
 
-		array->v.vpp = newArray;
-		array->size = newSize;
-	}
+        array->v.vpp = newArray;
+        array->size = newSize;
+    }
 
-	array->v.vpp[array->length++] = value;
+    array->v.vpp[array->length++] = value;
 
-	return true;
+    return true;
 }
 
 jx_value * jxa_pop(jx_value * array)
 {
-	if (array == NULL || array->type != JX_TYPE_ARRAY || array->length == 0) {
-		return NULL;
-	}
+    if (array == NULL || array->type != JX_TYPE_ARRAY || array->length == 0) {
+        return NULL;
+    }
 
-	return array->v.vpp[--array->length];
+    return array->v.vpp[--array->length];
 }
 
 jx_value * jxa_top(jx_value * array)
 {
-	if (array == NULL || array->type != JX_TYPE_ARRAY || array->length == 0) {
-		return NULL;
-	}
+    if (array == NULL || array->type != JX_TYPE_ARRAY || array->length == 0) {
+        return NULL;
+    }
 
-	return array->v.vpp[array->length - 1];
+    return array->v.vpp[array->length - 1];
 }
 
 bool jxa_push_number(jx_value * array, double num)
 {
-	jx_value * value;
+    jx_value * value;
 
-	if (array == NULL || array->type != JX_TYPE_ARRAY) {
-		return false;
-	}
+    if (array == NULL || array->type != JX_TYPE_ARRAY) {
+        return false;
+    }
 
-	if ((value = jxv_number_new(num)) == NULL) {
-		return false;
-	}
+    if ((value = jxv_number_new(num)) == NULL) {
+        return false;
+    }
 
-	if (!jxa_push(array, value)) {
-		jxv_free(value);
-		return false;
-	}
+    if (!jxa_push(array, value)) {
+        jxv_free(value);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 double jxa_get_number(jx_value * array, size_t i)
 {
-	jx_value * value;
+    jx_value * value;
 
-	value = jxa_get(array, i);
+    value = jxa_get(array, i);
 
-	if (value == NULL || value->type != JX_TYPE_NUMBER) {
-		return 0.0;
-	}
+    if (value == NULL || value->type != JX_TYPE_NUMBER) {
+        return 0.0;
+    }
 
-	return value->v.vf;
+    return value->v.vf;
 }
 
 bool jxa_push_ptr(jx_value * array, void * ptr)
 {
-	jx_value * value;
+    jx_value * value;
 
-	if (array == NULL || array->type != JX_TYPE_ARRAY) {
-		return false;
-	}
+    if (array == NULL || array->type != JX_TYPE_ARRAY) {
+        return false;
+    }
 
-	if ((value = jxv_new(JX_TYPE_PTR)) == NULL) {
-		return false;
-	}
+    if ((value = jxv_new(JX_TYPE_PTR)) == NULL) {
+        return false;
+    }
 
-	value->v.vp = ptr;
+    value->v.vp = ptr;
 
-	if (!jxa_push(array, value)) {
-		jxv_free(value);
-		return false;
-	}
+    if (!jxa_push(array, value)) {
+        jxv_free(value);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 void * jxa_get_ptr(jx_value * array, size_t i)
 {
-	if (array == NULL || array->type != JX_TYPE_ARRAY) {
-		return NULL;
-	}
+    if (array == NULL || array->type != JX_TYPE_ARRAY) {
+        return NULL;
+    }
 
-	return jxv_get_ptr(jxa_get(array, i));
+    return jxv_get_ptr(jxa_get(array, i));
 }
 
 void * jxv_get_ptr(jx_value * value)
 {
-	if (value == NULL || value->type != JX_TYPE_PTR) {
-		return NULL;
-	}
+    if (value == NULL || value->type != JX_TYPE_PTR) {
+        return NULL;
+    }
 
-	return value->v.vp;
+    return value->v.vp;
 }
 
 void jx_trie_reduce_key_charset(char * dst_key, unsigned char * src_key, size_t dst_size)
 {
-	int src_i;
-	int dst_i;
+    int src_i;
+    int dst_i;
 
-	if (dst_key == NULL || src_key == NULL) {
-		return;
-	}
+    if (dst_key == NULL || src_key == NULL) {
+        return;
+    }
 
-	src_i = 0;
+    src_i = 0;
 
-	for (dst_i = 0; dst_i < dst_size - 2; dst_i += 2) {
-		if (!src_key[src_i]) {
-			break;
-		}
+    for (dst_i = 0; dst_i < dst_size - 2; dst_i += 2) {
+        if (!src_key[src_i]) {
+            break;
+        }
 
-		dst_key[dst_i] = (src_key[src_i] >> 4) + 1;
-		dst_key[dst_i + 1] = (src_key[src_i] & 0x0F) + 1;
+        dst_key[dst_i] = (src_key[src_i] >> 4) + 1;
+        dst_key[dst_i + 1] = (src_key[src_i] & 0x0F) + 1;
 
-		src_i++;
-	}
+        src_i++;
+    }
 
-	dst_key[dst_i] = '\0';
+    dst_key[dst_i] = '\0';
 }
 
 void jx_trie_expand_key_charset(unsigned char * dst_key, char * src_key, size_t dst_size)
 {
-	int src_i;
-	int dst_i;
+    int src_i;
+    int dst_i;
 
-	if (dst_key == NULL || src_key == NULL) {
-		return;
-	}
+    if (dst_key == NULL || src_key == NULL) {
+        return;
+    }
 
-	src_i = 0;
+    src_i = 0;
 
-	for (dst_i = 0; dst_i < dst_size - 1; dst_i++) {
-		if (!src_key[src_i] || !src_key[src_i + 1]) {
-			break;
-		}
+    for (dst_i = 0; dst_i < dst_size - 1; dst_i++) {
+        if (!src_key[src_i] || !src_key[src_i + 1]) {
+            break;
+        }
 
-		dst_key[dst_i] = ((src_key[src_i] - 1) << 4) | (src_key[src_i + 1] - 1);
+        dst_key[dst_i] = ((src_key[src_i] - 1) << 4) | (src_key[src_i + 1] - 1);
 
-		src_i += 2;
-	}
+        src_i += 2;
+    }
 
-	dst_key[dst_i] = '\0';
+    dst_key[dst_i] = '\0';
 }
 
 /* Traverse the tree in an order determined by the value of each character in
@@ -281,30 +281,30 @@ void jx_trie_expand_key_charset(unsigned char * dst_key, char * src_key, size_t 
  * caller can set the object on the it (and free the old one, if required). */
 jx_trie_node * jx_trie_add_key(jx_trie_node * node, char * key, int key_i)
 {
-	if (node == NULL || key == NULL) {
-		return NULL;
-	}
+    if (node == NULL || key == NULL) {
+        return NULL;
+    }
 
-	if (key[key_i] == '\0') {
-		return node;
-	}
-	else {
-		int next_i = key[key_i] - 1;
+    if (key[key_i] == '\0') {
+        return node;
+    }
+    else {
+        int next_i = key[key_i] - 1;
 
-		if (node->child_nodes[next_i] == NULL) {
-			jx_trie_node * new_ch_node = calloc(1, sizeof(jx_trie_node));
+        if (node->child_nodes[next_i] == NULL) {
+            jx_trie_node * new_ch_node = calloc(1, sizeof(jx_trie_node));
 
-			if (new_ch_node == NULL) {
-				return NULL;
-			}
+            if (new_ch_node == NULL) {
+                return NULL;
+            }
 
-			new_ch_node->byte = key[key_i];
+            new_ch_node->byte = key[key_i];
 
-			node->child_nodes[next_i] = new_ch_node;
-		}
+            node->child_nodes[next_i] = new_ch_node;
+        }
 
-		return jx_trie_add_key(node->child_nodes[next_i], key, ++key_i);
-	}
+        return jx_trie_add_key(node->child_nodes[next_i], key, ++key_i);
+    }
 }
 
 /* Traverse the tree in an order determined by the value of each character in
@@ -312,22 +312,22 @@ jx_trie_node * jx_trie_add_key(jx_trie_node * node, char * key, int key_i)
  * be found. */
 jx_trie_node * jx_trie_get_key(jx_trie_node * node, char * key, int key_i)
 {
-	if (node == NULL || key == NULL) {
-		return NULL;
-	}
+    if (node == NULL || key == NULL) {
+        return NULL;
+    }
 
-	if (key[key_i] == '\0') {
-		return node;
-	}
-	else {
-		int next_i = key[key_i] - 1;
+    if (key[key_i] == '\0') {
+        return node;
+    }
+    else {
+        int next_i = key[key_i] - 1;
 
-		if (node->child_nodes[next_i] == NULL) {
-			return NULL;
-		}
+        if (node->child_nodes[next_i] == NULL) {
+            return NULL;
+        }
 
-		return jx_trie_get_key(node->child_nodes[next_i], key, ++key_i);
-	}
+        return jx_trie_get_key(node->child_nodes[next_i], key, ++key_i);
+    }
 }
 
 /* Traverse the tree in character order of the key, if an object is found,
@@ -335,53 +335,53 @@ jx_trie_node * jx_trie_get_key(jx_trie_node * node, char * key, int key_i)
  * returned to the caller to be used, or freed if not needed. */
 jx_value * jx_trie_del_key(jx_trie_node * node, char * key, int key_i)
 {
-	if (node == NULL || key == NULL) {
-		return NULL;
-	}
+    if (node == NULL || key == NULL) {
+        return NULL;
+    }
 
-	if (key[key_i] == '\0') {
-		jx_value * value = node->value;
+    if (key[key_i] == '\0') {
+        jx_value * value = node->value;
 
-		node->value = NULL;
+        node->value = NULL;
 
-		return value;
-	}
-	else {
-		int next_i = key[key_i] - 1;
+        return value;
+    }
+    else {
+        int next_i = key[key_i] - 1;
 
-		if (node->child_nodes[next_i] == NULL) {
-			return NULL;
-		}
+        if (node->child_nodes[next_i] == NULL) {
+            return NULL;
+        }
 
-		jx_value * value = jx_trie_del_key(node->child_nodes[next_i], key, ++key_i);
+        jx_value * value = jx_trie_del_key(node->child_nodes[next_i], key, ++key_i);
 
-		/* We have successfully found a key in the trie, check to see if the child
-		 * branch at our current index is empty and needs to be pruned. */
-		if (value != NULL) {
-			bool match = false;
+        /* We have successfully found a key in the trie, check to see if the child
+         * branch at our current index is empty and needs to be pruned. */
+        if (value != NULL) {
+            bool match = false;
 
-			if (node->child_nodes[next_i]->value != NULL) {
-				match = true;
-			}
-			else {
-				int j;
+            if (node->child_nodes[next_i]->value != NULL) {
+                match = true;
+            }
+            else {
+                int j;
 
-				for (j = 0; j < 16; j++) {
-					if (node->child_nodes[next_i]->child_nodes[j] != NULL) {
-						match = true;
-						break;
-					}
-				}
-			}
+                for (j = 0; j < 16; j++) {
+                    if (node->child_nodes[next_i]->child_nodes[j] != NULL) {
+                        match = true;
+                        break;
+                    }
+                }
+            }
 
-			if (!match) {
-				free(node->child_nodes[next_i]);
-				node->child_nodes[next_i] = NULL;
-			}
-		}
+            if (!match) {
+                free(node->child_nodes[next_i]);
+                node->child_nodes[next_i] = NULL;
+            }
+        }
 
-		return value;
-	}
+        return value;
+    }
 }
 
 /* Find all stored keys, invoking the callback passed in for each node that has an object.
@@ -398,537 +398,537 @@ jx_value * jx_trie_del_key(jx_trie_node * node, char * key, int key_i)
  * passed as the fourth arugment of this function. */
  bool jx_trie_iterate_keys(jx_trie_node * node, jx_value * prefix, jxd_iter_cb cb_func, void * ptr)
 {
-	int i;
+    int i;
 
-	if (node == NULL || prefix == NULL || cb_func == NULL) {
-		return false;
-	}
+    if (node == NULL || prefix == NULL || cb_func == NULL) {
+        return false;
+    }
 
-	if (!jxs_push(prefix, node->byte)) {
-		return false;
-	}
+    if (!jxs_push(prefix, node->byte)) {
+        return false;
+    }
 
-	if (node->value != NULL) {
-		int orig_key_size = (prefix->length / 2) + 1;
+    if (node->value != NULL) {
+        int orig_key_size = (prefix->length / 2) + 1;
 
-		char * orig_key = alloca(orig_key_size);
-		char * prefix_key = jxs_get_str(prefix);
+        char * orig_key = alloca(orig_key_size);
+        char * prefix_key = jxs_get_str(prefix);
 
-		jx_trie_expand_key_charset((unsigned char *)orig_key, prefix_key, orig_key_size);
+        jx_trie_expand_key_charset((unsigned char *)orig_key, prefix_key, orig_key_size);
 
-		cb_func(orig_key, node->value, ptr);
-	}
+        cb_func(orig_key, node->value, ptr);
+    }
 
-	for (i = 0; i < 16; i++) {
-		if (node->child_nodes[i] != NULL) {
-			jx_trie_iterate_keys(node->child_nodes[i], prefix, cb_func, ptr);
-		}
-	}
+    for (i = 0; i < 16; i++) {
+        if (node->child_nodes[i] != NULL) {
+            jx_trie_iterate_keys(node->child_nodes[i], prefix, cb_func, ptr);
+        }
+    }
 
-	jxs_pop(prefix);
+    jxs_pop(prefix);
 
-	return true;
+    return true;
 }
 
 void jx_trie_free_branch(jx_trie_node * node)
 {
-	int i;
+    int i;
 
-	if (node == NULL) {
-		return;
-	}
+    if (node == NULL) {
+        return;
+    }
 
-	for (i = 0; i < 16; i++) {
-		if (node->child_nodes[i] != NULL) {
-			jx_trie_free_branch(node->child_nodes[i]);
-		}
-	}
+    for (i = 0; i < 16; i++) {
+        if (node->child_nodes[i] != NULL) {
+            jx_trie_free_branch(node->child_nodes[i]);
+        }
+    }
 
-	if (node->value != NULL) {
-		jxv_free(node->value);
-	}
+    if (node->value != NULL) {
+        jxv_free(node->value);
+    }
 
-	free(node);
+    free(node);
 }
 
 jx_value * jxd_new()
 {
-	jx_value * value;
+    jx_value * value;
 
-	if ((value = jxv_new(JX_TYPE_OBJECT)) == NULL) {
-		return NULL;
-	}
+    if ((value = jxv_new(JX_TYPE_OBJECT)) == NULL) {
+        return NULL;
+    }
 
-	if ((value->v.vp = calloc(1, sizeof(jx_trie_node))) == NULL) {
-		jxv_free(value);
-		return NULL;
-	}
+    if ((value->v.vp = calloc(1, sizeof(jx_trie_node))) == NULL) {
+        jxv_free(value);
+        return NULL;
+    }
 
-	return value;
+    return value;
 }
 
 bool jxd_put(jx_value * dict, char * key, jx_value * value)
 {
-	char * lookup_key;
-	int lookup_key_size;
+    char * lookup_key;
+    int lookup_key_size;
 
-	jx_trie_node * node;
+    jx_trie_node * node;
 
-	if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL || value == NULL) {
-		return false;
-	}
+    if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL || value == NULL) {
+        return false;
+    }
 
-	lookup_key_size = (strlen(key) * 2) + 1;
-	lookup_key = alloca(lookup_key_size);
+    lookup_key_size = (strlen(key) * 2) + 1;
+    lookup_key = alloca(lookup_key_size);
 
-	jx_trie_reduce_key_charset(lookup_key, (unsigned char *)key, lookup_key_size);
+    jx_trie_reduce_key_charset(lookup_key, (unsigned char *)key, lookup_key_size);
 
-	node = jx_trie_add_key(dict->v.vp, lookup_key, 0);
+    node = jx_trie_add_key(dict->v.vp, lookup_key, 0);
 
-	if (node == NULL) {
-		return false;
-	}
+    if (node == NULL) {
+        return false;
+    }
 
-	if (node->value != NULL) {
-		jxv_free(node->value);
-	}
+    if (node->value != NULL) {
+        jxv_free(node->value);
+    }
 
-	node->value = value;
+    node->value = value;
 
-	return true;
+    return true;
 }
 
 jx_value * jxd_get(jx_value * dict, char * key)
 {
-	char * lookup_key;
-	int lookup_key_size;
+    char * lookup_key;
+    int lookup_key_size;
 
-	jx_trie_node * node;
+    jx_trie_node * node;
 
-	if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL) {
-		return NULL;
-	}
+    if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL) {
+        return NULL;
+    }
 
-	lookup_key_size = (strlen(key) * 2) + 1;
-	lookup_key = alloca(lookup_key_size);
+    lookup_key_size = (strlen(key) * 2) + 1;
+    lookup_key = alloca(lookup_key_size);
 
-	jx_trie_reduce_key_charset(lookup_key, (unsigned char *)key, lookup_key_size);
+    jx_trie_reduce_key_charset(lookup_key, (unsigned char *)key, lookup_key_size);
 
-	node = jx_trie_get_key(dict->v.vp, lookup_key, 0);
+    node = jx_trie_get_key(dict->v.vp, lookup_key, 0);
 
-	if (node == NULL) {
-		return NULL;
-	}
+    if (node == NULL) {
+        return NULL;
+    }
 
-	return node->value;
+    return node->value;
 }
 
 jx_value * jxd_del(jx_value * dict, char * key)
 {
-	char * lookup_key;
-	int lookup_key_size;
+    char * lookup_key;
+    int lookup_key_size;
 
-	if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL) {
-		return NULL;
-	}
+    if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL) {
+        return NULL;
+    }
 
-	lookup_key_size = (strlen(key) * 2) + 1;
-	lookup_key = alloca(lookup_key_size);
+    lookup_key_size = (strlen(key) * 2) + 1;
+    lookup_key = alloca(lookup_key_size);
 
-	jx_trie_reduce_key_charset(lookup_key, (unsigned char *)key, lookup_key_size);
+    jx_trie_reduce_key_charset(lookup_key, (unsigned char *)key, lookup_key_size);
 
-	return jx_trie_del_key(dict->v.vp, lookup_key, 0);
+    return jx_trie_del_key(dict->v.vp, lookup_key, 0);
 }
 
 bool jxd_del_free(jx_value * dict, char * key)
 {
-	jx_value * v = jxd_del(dict, key);
+    jx_value * v = jxd_del(dict, key);
 
-	jxv_free(v);
+    jxv_free(v);
 
-	return v != NULL;
+    return v != NULL;
 }
 
 bool jxd_iterate(jx_value * dict, jxd_iter_cb cb_func, void * ptr)
 {
-	bool success;
+    bool success;
 
-	jx_value * prefix;
+    jx_value * prefix;
 
-	if (dict == NULL || dict->type != JX_TYPE_OBJECT || cb_func == NULL) {
-		return false;
-	}
+    if (dict == NULL || dict->type != JX_TYPE_OBJECT || cb_func == NULL) {
+        return false;
+    }
 
-	prefix = jxs_new(NULL);
+    prefix = jxs_new(NULL);
 
-	if (prefix == NULL) {
-		return false;
-	}
+    if (prefix == NULL) {
+        return false;
+    }
 
-	success = jx_trie_iterate_keys(dict->v.vp, prefix, cb_func, ptr);
+    success = jx_trie_iterate_keys(dict->v.vp, prefix, cb_func, ptr);
 
-	jxv_free(prefix);
+    jxv_free(prefix);
 
-	return success;
+    return success;
 }
 
 bool jxd_has_key(jx_value * dict, char * key)
 {
-	return jxd_get(dict, key) != NULL;
+    return jxd_get(dict, key) != NULL;
 }
 
 jx_type jxd_get_type(jx_value * dict, char * key, bool * found)
 {
-	jx_value * value = jxd_get(dict, key);
+    jx_value * value = jxd_get(dict, key);
 
-	if (found != NULL) {
-		*found = value != NULL;
-	}
+    if (found != NULL) {
+        *found = value != NULL;
+    }
 
-	return jxv_get_type(value);
+    return jxv_get_type(value);
 }
 
 bool jxd_put_number(jx_value * dict, char * key, double num)
 {
-	jx_value * value = jxv_number_new(num);
+    jx_value * value = jxv_number_new(num);
 
-	if (value == NULL) {
-		return false;
-	}
+    if (value == NULL) {
+        return false;
+    }
 
-	if (!jxd_put(dict, key, value)) {
-		jxv_free(value);
-		return false;
-	}
+    if (!jxd_put(dict, key, value)) {
+        jxv_free(value);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 double jxd_get_number(jx_value * dict, char * key, bool * found)
 {
-	jx_value * value = jxd_get(dict, key);
+    jx_value * value = jxd_get(dict, key);
 
-	if (found) {
-		*found = jxv_get_type(value) == JX_TYPE_NUMBER;
-	}
+    if (found) {
+        *found = jxv_get_type(value) == JX_TYPE_NUMBER;
+    }
 
-	return jxv_get_number(value);
+    return jxv_get_number(value);
 }
 
 bool jxd_put_bool(jx_value * dict, char * key, bool value)
 {
-	return jxd_put(dict, key, jxv_bool_new(value));
+    return jxd_put(dict, key, jxv_bool_new(value));
 }
 
 bool jxd_get_bool(jx_value * dict, char * key, bool * found)
 {
-	jx_value * value = jxd_get(dict, key);
+    jx_value * value = jxd_get(dict, key);
 
-	if (found) {
-		*found = jxv_get_type(value) == JX_TYPE_BOOL;
-	}
+    if (found) {
+        *found = jxv_get_type(value) == JX_TYPE_BOOL;
+    }
 
-	return jxv_get_bool(value);
+    return jxv_get_bool(value);
 }
 
 bool jxd_put_string(jx_value * dict, char * key, char * value)
 {
-	jx_value * str = jxs_new(value);
+    jx_value * str = jxs_new(value);
 
-	if (!str) {
-		return false;
-	}
+    if (!str) {
+        return false;
+    }
 
-	if (!jxd_put(dict, key, str)) {
-		jxv_free(str);
-		return false;
-	}
+    if (!jxd_put(dict, key, str)) {
+        jxv_free(str);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 char * jxd_get_string(jx_value * dict, char * key, bool * found)
 {
-	jx_value * str = jxd_get(dict, key);
+    jx_value * str = jxd_get(dict, key);
 
-	if (found) {
-		*found = jxv_get_type(str) == JX_TYPE_STRING;
-	}
+    if (found) {
+        *found = jxv_get_type(str) == JX_TYPE_STRING;
+    }
 
-	return jxs_get_str(str);
+    return jxs_get_str(str);
 }
 
 jx_value * jxv_number_new(double num)
 {
-	jx_value * value;
+    jx_value * value;
 
-	if ((value = jxv_new(JX_TYPE_NUMBER)) == NULL) {
-		return NULL;
-	}
+    if ((value = jxv_new(JX_TYPE_NUMBER)) == NULL) {
+        return NULL;
+    }
 
-	value->v.vf = num;
+    value->v.vf = num;
 
-	return value;
+    return value;
 }
 
 double jxv_get_number(jx_value * v)
 {
-	if (v == NULL || v->type != JX_TYPE_NUMBER) {
-		return NAN;
-	}
+    if (v == NULL || v->type != JX_TYPE_NUMBER) {
+        return NAN;
+    }
 
-	return v->v.vf;
+    return v->v.vf;
 }
 
 jx_value * jxs_new(const char * src)
 {
-	jx_value * str;
+    jx_value * str;
 
-	if ((str = jxv_new(JX_TYPE_STRING)) == NULL) {
-		return NULL;
-	}
+    if ((str = jxv_new(JX_TYPE_STRING)) == NULL) {
+        return NULL;
+    }
 
-	if (src == NULL) {
-		str->length = 0;
-	}
-	else {
-		str->length = strlen(src);
-	}
+    if (src == NULL) {
+        str->length = 0;
+    }
+    else {
+        str->length = strlen(src);
+    }
 
-	str->size = 16;
+    str->size = 16;
 
-	while (str->size < str->length + 1) {
-		str->size *= 2;
-	}
+    while (str->size < str->length + 1) {
+        str->size *= 2;
+    }
 
-	if ((str->v.vp = malloc(sizeof(char) * str->size)) == NULL) {
-		jxv_free(str);
-		return NULL;
-	}
+    if ((str->v.vp = malloc(sizeof(char) * str->size)) == NULL) {
+        jxv_free(str);
+        return NULL;
+    }
 
-	if (src == NULL) {
-		((char *)str->v.vp)[0] = '\0';
-	}
-	else {
-		strcpy(str->v.vp, src);
-	}
+    if (src == NULL) {
+        ((char *)str->v.vp)[0] = '\0';
+    }
+    else {
+        strcpy(str->v.vp, src);
+    }
 
-	return str;
+    return str;
 }
 
 char * jxs_get_str(jx_value * str)
 {
-	if (str == NULL || str->type != JX_TYPE_STRING) {
-		return NULL;
-	}
+    if (str == NULL || str->type != JX_TYPE_STRING) {
+        return NULL;
+    }
 
-	return str->v.vp;
+    return str->v.vp;
 }
 
 bool jxs_resize(jx_value * str, size_t size)
 {
-	size_t new_size;
-	char * new_str;
+    size_t new_size;
+    char * new_str;
 
-	if (str->size >= size) {
-		return false;
-	}
+    if (str->size >= size) {
+        return false;
+    }
 
-	new_size = str->size;
+    new_size = str->size;
 
-	while (new_size < size) {
-		new_size *= 2;
-	}
+    while (new_size < size) {
+        new_size *= 2;
+    }
 
-	new_str = realloc(str->v.vp, new_size);
+    new_str = realloc(str->v.vp, new_size);
 
-	if (new_str == NULL) {
-		return false;
-	}
+    if (new_str == NULL) {
+        return false;
+    }
 
-	str->v.vp = new_str;
-	str->size = new_size;
+    str->v.vp = new_str;
+    str->size = new_size;
 
-	return true;
+    return true;
 }
 
 bool jxs_append_str(jx_value * dst, char * src)
 {
-	int new_length;
+    int new_length;
 
-	if (dst == NULL || dst->type != JX_TYPE_STRING) {
-		return false;
-	}
+    if (dst == NULL || dst->type != JX_TYPE_STRING) {
+        return false;
+    }
 
-	new_length = dst->length + strlen(src);
+    new_length = dst->length + strlen(src);
 
-	if (dst->size < new_length + 1) {
-		if (!jxs_resize(dst, new_length + 1)) {
-			return false;
-		}
-	}
+    if (dst->size < new_length + 1) {
+        if (!jxs_resize(dst, new_length + 1)) {
+            return false;
+        }
+    }
 
-	strcat(dst->v.vp, src);
+    strcat(dst->v.vp, src);
 
-	dst->length = new_length;
+    dst->length = new_length;
 
-	return true;
+    return true;
 }
 
 bool jxs_append_fmt(jx_value * dst, char * fmt, ...)
 {
-	int new_length;
-	va_list ap;
+    int new_length;
+    va_list ap;
 
-	if (dst == NULL || dst->type != JX_TYPE_STRING) {
-		return false;
-	}
+    if (dst == NULL || dst->type != JX_TYPE_STRING) {
+        return false;
+    }
 
-	va_start(ap, fmt);
-	new_length = dst->length + vsnprintf(NULL, 0, fmt, ap);
-	va_end(ap);
+    va_start(ap, fmt);
+    new_length = dst->length + vsnprintf(NULL, 0, fmt, ap);
+    va_end(ap);
 
-	if (dst->size < new_length + 1) {
-		if (!jxs_resize(dst, new_length + 1)) {
-			return false;
-		}
-	}
+    if (dst->size < new_length + 1) {
+        if (!jxs_resize(dst, new_length + 1)) {
+            return false;
+        }
+    }
 
-	va_start(ap, fmt);
-	vsprintf(dst->v.vp + dst->length, fmt, ap);
-	va_end(ap);
+    va_start(ap, fmt);
+    vsprintf(dst->v.vp + dst->length, fmt, ap);
+    va_end(ap);
 
-	dst->length = new_length;
+    dst->length = new_length;
 
-	return true;
+    return true;
 }
 
 bool jxs_append_chr(jx_value * dst, char c)
 {
-	if (dst == NULL || dst->type != JX_TYPE_STRING) {
-		return false;
-	}
+    if (dst == NULL || dst->type != JX_TYPE_STRING) {
+        return false;
+    }
 
-	if (c == '\0') {
-		return true;
-	}
+    if (c == '\0') {
+        return true;
+    }
 
-	if (dst->size < dst->length + 2) {
-		if (!jxs_resize(dst, dst->length + 2)) {
-			return false;
-		}
-	}
+    if (dst->size < dst->length + 2) {
+        if (!jxs_resize(dst, dst->length + 2)) {
+            return false;
+        }
+    }
 
-	((char*)dst->v.vp)[dst->length++] = c;
-	((char*)dst->v.vp)[dst->length] = '\0';
+    ((char*)dst->v.vp)[dst->length++] = c;
+    ((char*)dst->v.vp)[dst->length] = '\0';
 
-	return true;
+    return true;
 }
 
 bool jxs_push(jx_value * str, char c)
 {
-	return jxs_append_chr(str, c);
+    return jxs_append_chr(str, c);
 }
 
 char jxs_pop(jx_value * str)
 {
-	char * ptr;
-	char c;
+    char * ptr;
+    char c;
 
-	if (str == NULL || str->type != JX_TYPE_STRING || str->length == 0) {
-		return '\0';
-	}
+    if (str == NULL || str->type != JX_TYPE_STRING || str->length == 0) {
+        return '\0';
+    }
 
-	ptr = (char *)str->v.vp;
+    ptr = (char *)str->v.vp;
 
-	c = ptr[--str->length];
+    c = ptr[--str->length];
 
-	ptr[str->length] = '\0';
+    ptr[str->length] = '\0';
 
-	return c;
+    return c;
 }
 
 jx_value * jxv_null()
 {
-	static bool init = false;
-	static jx_value val_null;
+    static bool init = false;
+    static jx_value val_null;
 
-	if (!init) {
-		val_null.type = JX_TYPE_NULL;
-		init = true;
-	}
+    if (!init) {
+        val_null.type = JX_TYPE_NULL;
+        init = true;
+    }
 
-	return &val_null;
+    return &val_null;
 }
 
 bool jxv_is_null(jx_value * value)
 {
-	if (value == NULL) {
-		return false;
-	}
+    if (value == NULL) {
+        return false;
+    }
 
-	return value->type == JX_TYPE_NULL;
+    return value->type == JX_TYPE_NULL;
 }
 
 jx_value * jxv_bool_new(bool value)
 {
-	static bool init = false;
+    static bool init = false;
 
-	static jx_value val_true;
-	static jx_value val_false;
+    static jx_value val_true;
+    static jx_value val_false;
 
-	if (!init) {
-		val_true.type = JX_TYPE_BOOL;
-		val_true.v.vb = true;
+    if (!init) {
+        val_true.type = JX_TYPE_BOOL;
+        val_true.v.vb = true;
 
-		val_false.type = JX_TYPE_BOOL;
-		val_false.v.vb = false;
+        val_false.type = JX_TYPE_BOOL;
+        val_false.v.vb = false;
 
-		init = true;
-	}
+        init = true;
+    }
 
-	return (value) ? &val_true : &val_false;
+    return (value) ? &val_true : &val_false;
 }
 
 bool jxv_get_bool(jx_value * value)
 {
-	if (value == NULL || value->type != JX_TYPE_BOOL) {
-		return false;
-	}
+    if (value == NULL || value->type != JX_TYPE_BOOL) {
+        return false;
+    }
 
-	return value->v.vb;
+    return value->v.vb;
 }
 
 void jxv_free(jx_value * value)
 {
-	jx_type type;
+    jx_type type;
 
-	if (value == NULL) {
-		return;
-	}
+    if (value == NULL) {
+        return;
+    }
 
-	type = jxv_get_type(value);
+    type = jxv_get_type(value);
 
-	if (type == JX_TYPE_STRING || type == JX_TYPE_PTR) {
-		if (value->v.vp != NULL) {
-			free(value->v.vp);
-		}
-	}
-	else if (type == JX_TYPE_ARRAY) {
-		int i;
+    if (type == JX_TYPE_STRING || type == JX_TYPE_PTR) {
+        if (value->v.vp != NULL) {
+            free(value->v.vp);
+        }
+    }
+    else if (type == JX_TYPE_ARRAY) {
+        int i;
 
-		for (i = 0; i < jxa_get_length(value); i++) {
-			jxv_free(jxa_get(value, i));
-		}
+        for (i = 0; i < jxa_get_length(value); i++) {
+            jxv_free(jxa_get(value, i));
+        }
 
-		free(value->v.vpp);
-	}
-	else if (type == JX_TYPE_OBJECT) {
-		jx_trie_free_branch(value->v.vp);
-	}
-	else if (type == JX_TYPE_NULL || type == JX_TYPE_BOOL) {
-		return;
-	}
+        free(value->v.vpp);
+    }
+    else if (type == JX_TYPE_OBJECT) {
+        jx_trie_free_branch(value->v.vp);
+    }
+    else if (type == JX_TYPE_NULL || type == JX_TYPE_BOOL) {
+        return;
+    }
 
-	free(value);
+    free(value);
 }
