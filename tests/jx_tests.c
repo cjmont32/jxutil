@@ -16,13 +16,16 @@ enum
     DEFAULT,
     RUN_TESTS,
     CHECK_STRING,
+    CHECK_FILE,
     SHOW_USAGE
 } cmd_action;
 
 struct
 {
-    unsigned char halt     : 1;
-    unsigned char verbose  : 1;
+    unsigned char halt          : 1;
+    unsigned char verbose       : 1;
+    unsigned char serialize     : 1;
+    unsigned char escape        : 1;
 } cmd_opts;
 
 struct json_test
@@ -464,10 +467,11 @@ bool run_tests()
     return true;
 }
 
-bool validate_json_string(const char * json)
+bool validate_json_string(const char *json)
 {
     jx_cntx *cntx;
     jx_value *value;
+    char *out;
 
     if (json == NULL) {
         return false;
@@ -481,12 +485,65 @@ bool validate_json_string(const char * json)
     jx_parse_json(cntx, json, strlen(json));
 
     if ((value = jx_get_result(cntx)) == NULL) {
-        jx_free(cntx);
         fprintf(stderr, "%s\n", jx_get_error_message(cntx));
+        jx_free(cntx);
         return false;
     }
 
-    printf("JSON OK\n");
+    if (cmd_opts.serialize) {
+        out = jx_serialize_json(value, cmd_opts.escape);
+
+        if (out == NULL) {
+            fprintf(stderr, "Error: %s\n", strerror(errno));
+            jxv_free(value);
+            jx_free(cntx);
+            return false;
+        }
+
+        printf("%s", out);
+
+        free(out);
+    }
+
+    jxv_free(value);
+    jx_free(cntx);
+
+    return true;
+}
+
+bool validate_json_file(const char *path)
+{
+    jx_cntx *cntx;
+    jx_value *value;
+    char *json;
+
+    if ((cntx = jx_new()) == NULL) {
+        fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
+        return false;
+    }
+
+    value = jx_obj_from_file(cntx, path);
+
+    if (value == NULL) {
+        fprintf(stderr, "%s\n", jx_get_error_message(cntx));
+        jx_free(cntx);
+        return false;
+    }
+
+    if (cmd_opts.serialize) {
+        json = jx_serialize_json(value, cmd_opts.escape);
+
+        if (json == NULL) {
+            fprintf(stderr, "Error: %s\n", strerror(errno));
+            jxv_free(value);
+            jx_free(cntx);
+            return false;
+        }
+
+        printf("%s", json);
+
+        free(json);
+    }
 
     jxv_free(value);
     jx_free(cntx);
@@ -497,9 +554,12 @@ bool validate_json_string(const char * json)
 void print_usage()
 {
     printf(
-        "Usage: jx_tests [-apv] [-c json_string]\n"
+        "Usage: jx_tests [-asepv] [-c json_string] [-f file_path]\n"
         "   -a              Run all tests (default).\n"
         "   -c json_string  Validate that json_string is syntatically correct.\n"
+        "   -f path         Validate that file at <path> contains JSON that is syntatically correct.\n"
+        "   -s              Serialize JSON if valid and output to stdout (with -c or -f options).\n"
+        "   -e              Escape and enclose JSON output in string.\n"
         "   -p              Halt execution before stopping.\n"
         "   -v              Enable verbose output.\n"
     );
@@ -507,7 +567,7 @@ void print_usage()
 
 int main(int argc, char **argv)
 {
-    char *json;
+    char *file, *json;
     char opt;
     int i, j, t, len;
 
@@ -532,11 +592,7 @@ int main(int argc, char **argv)
                     cmd_action = RUN_TESTS;
                 }
                 else if (opt == 'c') {
-                    if (i + 1 == argc) {
-                        cmd_action = SHOW_USAGE;
-                    }
-
-                    if (cmd_action != DEFAULT) {
+                    if (i == argc - 1 || cmd_action != DEFAULT) {
                         cmd_action = SHOW_USAGE;
                         i += 2;
                         continue;
@@ -545,6 +601,23 @@ int main(int argc, char **argv)
                     cmd_action = CHECK_STRING;
 
                     json = argv[++i];
+                }
+                else if (opt == 'f') {
+                    if (i == argc -1 || cmd_action != DEFAULT) {
+                        cmd_action = SHOW_USAGE;
+                        i += 2;
+                        continue;
+                    }
+
+                    cmd_action = CHECK_FILE;
+
+                    file = argv[++i];
+                }
+                else if (opt == 's') {
+                    cmd_opts.serialize = true;
+                }
+                else if (opt == 'e') {
+                    cmd_opts.escape = true;
                 }
                 else if (opt == 'v') {
                     cmd_opts.verbose = true;
@@ -573,6 +646,11 @@ int main(int argc, char **argv)
             break;
         case CHECK_STRING:
             if (!validate_json_string(json)) {
+                return 1;
+            }
+            break;
+        case CHECK_FILE:
+            if (!validate_json_file(file)) {
                 return 1;
             }
             break;

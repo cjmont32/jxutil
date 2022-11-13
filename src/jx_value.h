@@ -62,6 +62,8 @@ typedef struct jx_value_t
 
     size_t size;
     size_t length;
+
+    bool error;
 } jx_value;
 
 typedef struct jx_trie_node_t
@@ -117,10 +119,12 @@ jx_value *jxv_number_new(double num);
 double jxv_get_number(jx_value *value);
 
 jx_value *jxs_new(const char *src);
+bool jxs_append_jxs(jx_value *dst, jx_value *src);
 bool jxs_append_str(jx_value *dst, char *src);
 bool jxs_append_fmt(jx_value *dst, char *fmt, ...);
 bool jxs_append_chr(jx_value *dst, char c);
 bool jxs_push(jx_value *str, char c);
+char jxs_top(jx_value *str);
 char jxs_pop(jx_value *str);
 char *jxs_get_str(jx_value *str);
 
@@ -129,5 +133,7 @@ bool jxv_is_null(jx_value *value);
 
 jx_value *jxv_bool_new(bool value);
 bool jxv_get_bool(jx_value *value);
+
+bool jxv_is_valid(jx_value *value);
 
 void jxv_free(jx_value *value);

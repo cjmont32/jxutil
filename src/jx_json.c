@@ -1629,3 +1629,243 @@ jx_value *jx_get_result(jx_cntx *cntx)
 
     return ret;
 }
+
+char *jx_serialize_json(jx_value *value, bool escape)
+{
+    jx_value *buf;
+    char *r;
+
+    jx_type type;
+
+    type = jxv_get_type(value);
+
+    if (type != JX_TYPE_ARRAY && type != JX_TYPE_OBJECT)
+        return NULL;
+
+    buf = jxs_new(NULL);
+
+    if (buf == NULL)
+        return NULL;
+
+    if (!jx_serialize_value(buf, value)) {
+        jxv_free(buf);
+        return NULL;
+    }
+
+    if (escape) {
+        buf = jx_serialize_escape(buf);
+
+        if (buf == NULL) {
+            return NULL;
+        }
+    }
+
+    r = strdup(jxs_get_str(buf));
+
+    jxv_free(buf);
+
+    return r;
+}
+
+jx_value *jx_serialize_escape(jx_value *src)
+{
+    jx_value *dst;
+    char *ptr;
+
+    ptr = jxs_get_str(src);
+    dst = jxs_new(NULL);
+
+    if (ptr == NULL || dst == NULL)
+        return NULL;
+
+    jxs_append_chr(dst, '"');
+
+    while (*ptr != '\0') {
+        if (*ptr == '\\' || *ptr == '"') {
+            jxs_append_chr(dst, '\\');
+        }
+
+        jxs_append_chr(dst, *ptr++);
+
+        if (!jxv_is_valid(dst))
+            break;
+    }
+
+    jxs_append_chr(dst, '"');
+
+    jxv_free(src);
+
+    if (!jxv_is_valid(dst)) {
+        jxv_free(dst);
+        return NULL;
+    }
+
+    return dst;
+}
+
+bool jx_serialize_utf8_string(jx_value *buf, const char *str)
+{
+    const char *ptr;
+
+    jxs_append_chr(buf, '"');
+
+    for (ptr = str; *ptr != '\0'; ptr++) {
+        switch (*ptr) {
+            case '\t':
+                jxs_append_str(buf, "\\t");
+                break;
+            case '\n':
+                jxs_append_str(buf, "\\n");
+                break;
+            case '\r':
+                jxs_append_str(buf, "\\r");
+                break;
+            case '\b':
+                jxs_append_str(buf, "\\b");
+                break;
+            case '\f':
+                jxs_append_str(buf, "\\f");
+                break;
+            default:
+                if (*ptr == '\\' || *ptr == '"')
+                    jxs_append_chr(buf, '\\');
+
+                jxs_append_chr(buf, *ptr);
+                break;
+        }
+    }
+
+    jxs_append_chr(buf, '"');
+
+    return jxv_is_valid(buf);
+}
+
+void jx_serialize_kv(const char *key, jx_value *value, void *ptr)
+{
+    jx_value *buf = ptr;
+
+    jx_serialize_utf8_string(buf, key);
+
+    jxs_append_chr(buf, ':');
+
+    jx_serialize_value(buf, value);
+
+    jxs_append_chr(buf, ',');
+}
+
+bool jx_serialize_null(jx_value *buf, jx_value *value)
+{
+    return jxs_append_str(buf, "null");
+}
+
+bool jx_serialize_bool(jx_value *buf, jx_value *value)
+{
+    if (jxv_get_bool(value)) {
+        return jxs_append_str(buf, "true");
+    }
+    else {
+        return jxs_append_str(buf, "false");
+    }
+}
+
+bool jx_serialize_number(jx_value *buf, jx_value *number)
+{
+    double value = jxv_get_number(number);
+
+    return jxs_append_fmt(buf, "%g", value);
+}
+
+bool jx_serialize_string(jx_value *buf, jx_value *str)
+{
+    return jx_serialize_utf8_string(buf, jxs_get_str(str));
+}
+
+bool jx_serialize_object(jx_value *buf, jx_value *obj)
+{
+    char c;
+
+    jxs_append_chr(buf, '{');
+
+    jxd_iterate(obj, jx_serialize_kv, buf);
+
+    // Remove trailing comma, if any
+    while ((c = jxs_top(buf)) != '{') {
+        jxs_pop(buf);
+
+        if (c == ',') {
+            break;
+        }
+    }
+
+    jxs_append_chr(buf, '}');
+
+    return jxv_is_valid(buf);
+}
+
+bool jx_serialize_array(jx_value *buf, jx_value *array)
+{
+    jx_value *value;
+
+    size_t i, length;
+
+    length = jxa_get_length(array);
+
+    jxs_append_chr(buf, '[');
+
+    for (i = 0; i < length; i++) {
+        value = jxa_get(array, i);
+
+        if (!jx_serialize_value(buf, value)) {
+            return false;
+        }
+
+        if (i != length - 1) {
+            jxs_append_chr(buf, ',');
+        }
+    }
+
+    jxs_append_chr(buf, ']');
+
+    return jxv_is_valid(buf);
+}
+
+bool jx_serialize_value(jx_value *buf, jx_value *value)
+{
+    jx_type type;
+
+    if (buf == NULL || value == NULL)
+        return false;
+
+    if (jxv_get_type(buf) != JX_TYPE_STRING)
+        return false;
+
+    type = jxv_get_type(value);
+
+    if (type == JX_TYPE_UNDEF || type == JX_TYPE_PTR)
+        return false;
+
+    switch (type) {
+        case JX_TYPE_ARRAY:
+            jx_serialize_array(buf, value);
+            break;
+        case JX_TYPE_OBJECT:
+            jx_serialize_object(buf, value);
+            break;
+        case JX_TYPE_STRING:
+            jx_serialize_string(buf, value);
+            break;
+        case JX_TYPE_NUMBER:
+            jx_serialize_number(buf, value);
+            break;
+        case JX_TYPE_BOOL:
+            jx_serialize_bool(buf, value);
+            break;
+        case JX_TYPE_NULL:
+            jx_serialize_null(buf, value);
+            break;
+        default:
+            break;
+    }
+
+    return jxv_is_valid(buf);
+}

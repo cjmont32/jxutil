@@ -743,6 +743,7 @@ bool jxs_resize(jx_value *str, size_t size)
     new_str = realloc(str->v.vp, new_size);
 
     if (new_str == NULL) {
+        str->error = true;
         return false;
     }
 
@@ -756,7 +757,7 @@ bool jxs_append_str(jx_value *dst, char *src)
 {
     int new_length;
 
-    if (dst == NULL || dst->type != JX_TYPE_STRING) {
+    if (dst == NULL || dst->type != JX_TYPE_STRING || dst->error) {
         return false;
     }
 
@@ -775,12 +776,22 @@ bool jxs_append_str(jx_value *dst, char *src)
     return true;
 }
 
+bool jxs_append_jxs(jx_value *dst, jx_value *src)
+{
+    char *ptr;
+
+    if ((ptr = jxs_get_str(src)) == NULL)
+        return false;
+
+    return jxs_append_str(dst, ptr);
+}
+
 bool jxs_append_fmt(jx_value *dst, char *fmt, ...)
 {
     int new_length;
     va_list ap;
 
-    if (dst == NULL || dst->type != JX_TYPE_STRING) {
+    if (dst == NULL || dst->type != JX_TYPE_STRING || dst->error) {
         return false;
     }
 
@@ -805,7 +816,7 @@ bool jxs_append_fmt(jx_value *dst, char *fmt, ...)
 
 bool jxs_append_chr(jx_value *dst, char c)
 {
-    if (dst == NULL || dst->type != JX_TYPE_STRING) {
+    if (dst == NULL || dst->type != JX_TYPE_STRING || dst->error) {
         return false;
     }
 
@@ -830,9 +841,22 @@ bool jxs_push(jx_value *str, char c)
     return jxs_append_chr(str, c);
 }
 
+char jxs_top(jx_value *str)
+{
+    char *ptr;
+
+    if (str == NULL || str->type != JX_TYPE_STRING || str->length == 0) {
+        return '\0';
+    }
+
+    ptr = str->v.vp;
+
+    return ptr[str->length - 1];
+}
+
 char jxs_pop(jx_value *str)
 {
-    char * ptr;
+    char *ptr;
     char c;
 
     if (str == NULL || str->type != JX_TYPE_STRING || str->length == 0) {
@@ -897,6 +921,11 @@ bool jxv_get_bool(jx_value *value)
     }
 
     return value->v.vb;
+}
+
+bool jxv_is_valid(jx_value *value)
+{
+    return !value->error;
 }
 
 void jxv_free(jx_value *value)

@@ -169,3 +169,17 @@ void jx_set_extensions(jx_cntx *cntx, jx_ext_set ext);
 int jx_parse_json(jx_cntx *cntx, const char *src, long n_bytes);
 
 jx_value *jx_get_result(jx_cntx * cntx);
+
+char *jx_serialize_json(jx_value *value, bool escape);
+
+#ifdef JX_INTERNAL
+jx_value *jx_serialize_escape(jx_value *src);
+bool jx_serialize_utf8_string(jx_value *buf, const char *str);
+bool jx_serialize_null(jx_value *buf, jx_value *value);
+bool jx_serialize_bool(jx_value *buf, jx_value *value);
+bool jx_serialize_number(jx_value *buf, jx_value *number);
+bool jx_serialize_string(jx_value *buf, jx_value *str);
+bool jx_serialize_object(jx_value *buf, jx_value *obj);
+bool jx_serialize_array(jx_value *buf, jx_value *array);
+bool jx_serialize_value(jx_value *buf, jx_value *value);
+#endif
