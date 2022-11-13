@@ -83,9 +83,9 @@ static const char * const jx_error_messages[JX_ERROR_GUARD] =
     "Syntax Error [%lu:%lu]: Incomplete JSON object."
 };
 
-jx_cntx * jx_new()
+jx_cntx *jx_new()
 {
-    jx_cntx * cntx;
+    jx_cntx *cntx;
 
     if ((cntx = calloc(1, sizeof(jx_cntx))) == NULL) {
         return NULL;
@@ -104,14 +104,14 @@ jx_cntx * jx_new()
     return cntx;
 }
 
-void jx_free(jx_cntx * cntx)
+void jx_free(jx_cntx *cntx)
 {
     if (cntx == NULL) {
         return;
     }
 
     while (jx_get_mode(cntx) != JX_MODE_UNDEFINED) {
-        jx_frame * frame;
+        jx_frame *frame;
 
         frame = jx_top(cntx);
 
@@ -135,7 +135,7 @@ void jx_free(jx_cntx * cntx)
     free(cntx);
 }
 
-void jx_set_error(jx_cntx * cntx, jx_error error, ...)
+void jx_set_error(jx_cntx *cntx, jx_error error, ...)
 {
     va_list ap;
 
@@ -156,7 +156,7 @@ void jx_set_error(jx_cntx * cntx, jx_error error, ...)
     }
 }
 
-jx_error jx_get_error(jx_cntx * cntx)
+jx_error jx_get_error(jx_cntx *cntx)
 {
     if (cntx == NULL) {
         return JX_ERROR_INVALID_CONTEXT;
@@ -165,7 +165,7 @@ jx_error jx_get_error(jx_cntx * cntx)
     return cntx->error;
 }
 
-const char * const jx_get_error_message(jx_cntx * cntx)
+const char * const jx_get_error_message(jx_cntx *cntx)
 {
     if (cntx == NULL) {
         return jx_error_messages[JX_ERROR_INVALID_CONTEXT];
@@ -174,7 +174,7 @@ const char * const jx_get_error_message(jx_cntx * cntx)
     return cntx->error_msg;
 }
 
-void jx_set_tab_stop_width(jx_cntx * cntx, int tab_width)
+void jx_set_tab_stop_width(jx_cntx *cntx, int tab_width)
 {
     if (cntx == NULL || cntx->locked) {
         return;
@@ -183,7 +183,7 @@ void jx_set_tab_stop_width(jx_cntx * cntx, int tab_width)
     cntx->tab_stop_width = tab_width;
 }
 
-void jx_set_extensions(jx_cntx * cntx, jx_ext_set ext)
+void jx_set_extensions(jx_cntx *cntx, jx_ext_set ext)
 {
     if (cntx == NULL || cntx->locked) {
         return;
@@ -192,7 +192,7 @@ void jx_set_extensions(jx_cntx * cntx, jx_ext_set ext)
     cntx->ext = ext;
 }
 
-jx_frame * jx_top(jx_cntx * cntx)
+jx_frame *jx_top(jx_cntx *cntx)
 {
     if (cntx == NULL) {
         return NULL;
@@ -201,9 +201,9 @@ jx_frame * jx_top(jx_cntx * cntx)
     return jxv_get_ptr(jxa_top(cntx->object_stack));
 }
 
-bool jx_push_mode(jx_cntx * cntx, jx_mode mode)
+bool jx_push_mode(jx_cntx *cntx, jx_mode mode)
 {
-    jx_frame * frame;
+    jx_frame *frame;
 
     if (cntx == NULL || cntx->object_stack == NULL) {
         return false;
@@ -224,9 +224,9 @@ bool jx_push_mode(jx_cntx * cntx, jx_mode mode)
     return true;
 }
 
-void jx_pop_mode(jx_cntx * cntx)
+void jx_pop_mode(jx_cntx *cntx)
 {
-    jx_value * value;
+    jx_value *value;
 
     if (cntx == NULL || cntx->object_stack == NULL) {
         return;
@@ -237,9 +237,9 @@ void jx_pop_mode(jx_cntx * cntx)
     jxv_free(value);
 }
 
-void jx_set_mode(jx_cntx * cntx, jx_mode mode)
+void jx_set_mode(jx_cntx *cntx, jx_mode mode)
 {
-    jx_frame * frame;
+    jx_frame *frame;
 
     if ((frame = jx_top(cntx)) == NULL) {
         return;
@@ -248,9 +248,9 @@ void jx_set_mode(jx_cntx * cntx, jx_mode mode)
     frame->mode = mode;
 }
 
-jx_mode jx_get_mode(jx_cntx * cntx)
+jx_mode jx_get_mode(jx_cntx *cntx)
 {
-    jx_frame * frame;
+    jx_frame *frame;
 
     if ((frame = jx_top(cntx)) == NULL) {
         return JX_MODE_UNDEFINED;
@@ -259,9 +259,9 @@ jx_mode jx_get_mode(jx_cntx * cntx)
     return frame->mode;
 }
 
-void jx_set_state(jx_cntx * cntx, jx_state state)
+void jx_set_state(jx_cntx *cntx, jx_state state)
 {
-    jx_frame * frame;
+    jx_frame *frame;
 
     frame = jx_top(cntx);
 
@@ -272,9 +272,9 @@ void jx_set_state(jx_cntx * cntx, jx_state state)
     frame->state = state;
 }
 
-jx_state jx_get_state(jx_cntx * cntx)
+jx_state jx_get_state(jx_cntx *cntx)
 {
-    jx_frame * frame;
+    jx_frame *frame;
 
     frame = jx_top(cntx);
 
@@ -285,9 +285,9 @@ jx_state jx_get_state(jx_cntx * cntx)
     return frame->state;
 }
 
-void jx_set_value(jx_cntx * cntx, jx_value * value)
+void jx_set_value(jx_cntx *cntx, jx_value *value)
 {
-    jx_frame * frame;
+    jx_frame *frame;
 
     frame = jx_top(cntx);
 
@@ -298,9 +298,9 @@ void jx_set_value(jx_cntx * cntx, jx_value * value)
     frame->value = value;
 }
 
-jx_value * jx_get_value(jx_cntx * cntx)
+jx_value *jx_get_value(jx_cntx *cntx)
 {
-    jx_frame * frame;
+    jx_frame *frame;
 
     frame = jx_top(cntx);
 
@@ -311,9 +311,9 @@ jx_value * jx_get_value(jx_cntx * cntx)
     return frame->value;
 }
 
-void jx_set_return(jx_cntx * cntx, jx_value * value)
+void jx_set_return(jx_cntx *cntx, jx_value *value)
 {
-    jx_frame * frame;
+    jx_frame *frame;
 
     frame = jx_top(cntx);
 
@@ -324,9 +324,9 @@ void jx_set_return(jx_cntx * cntx, jx_value * value)
     frame->return_value = value;
 }
 
-jx_value * jx_get_return(jx_cntx * cntx)
+jx_value *jx_get_return(jx_cntx *cntx)
 {
-    jx_frame * frame;
+    jx_frame *frame;
 
     frame = jx_top(cntx);
 
@@ -375,7 +375,7 @@ int jx_utf16_decode(uint16_t pair[2])
     return code;
 }
 
-int jx_utf8_length(unsigned char * src)
+int jx_utf8_length(unsigned char *src)
 {
     if (src == NULL) {
         return -1;
@@ -482,7 +482,7 @@ bool jx_unicode_to_utf8(char out[5], int code_point)
     return true;
 }
 
-long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
+long jx_find_token(jx_cntx *cntx, const char *src, long pos, long end_pos)
 {
     int tab_width;
 
@@ -524,7 +524,7 @@ long jx_find_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
     return pos;
 }
 
-jx_token jx_token_type(const char * src, long pos)
+jx_token jx_token_type(const char *src, long pos)
 {
     if (src[pos] == '[') {
         return JX_TOKEN_ARRAY_BEGIN;
@@ -561,7 +561,7 @@ jx_token jx_token_type(const char * src, long pos)
     }
 }
 
-jx_utoken jx_unicode_token_type(jx_cntx * cntx)
+jx_utoken jx_unicode_token_type(jx_cntx *cntx)
 {
     if (cntx->ext & JX_EXT_UTF8_PI) {
         /* U+03C0 (GREEK LOWERCASE PI) */
@@ -573,7 +573,7 @@ jx_utoken jx_unicode_token_type(jx_cntx * cntx)
     return JX_UNI_UNSUPPORTED;
 }
 
-jx_value * jx_unicode_token_object(jx_utoken type)
+jx_value *jx_unicode_token_object(jx_utoken type)
 {
     if (type == JX_UNI_LOWER_PI) {
         return jxv_number_new(3.14159);
@@ -597,10 +597,10 @@ bool jx_start_token(jx_token token)
     }
 }
 
-void jx_illegal_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
+void jx_illegal_token(jx_cntx *cntx, const char *src, long pos, long end_pos)
 {
-    unsigned char * buf;
-    char * token_name;
+    unsigned char *buf;
+    char *token_name;
     char token[2];
 
     if (cntx == NULL || src == NULL) {
@@ -625,9 +625,9 @@ void jx_illegal_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
     jx_set_error(cntx, JX_ERROR_ILLEGAL_TOKEN, cntx->line, cntx->col, token_name);
 }
 
-long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+long jx_parse_array(jx_cntx *cntx, const char *src, long pos, long end_pos, bool *done)
 {
-    jx_value * ret;
+    jx_value *ret;
     jx_token token;
 
     if (cntx == NULL || src == NULL || done == NULL) {
@@ -641,7 +641,7 @@ long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
     ret = jx_get_return(cntx);
 
     if (ret != NULL) {
-        jx_value * array = jx_get_value(cntx);
+        jx_value *array = jx_get_value(cntx);
 
         if (!jxa_push(array, ret)) {
             jx_set_error(cntx, JX_ERROR_LIBC);
@@ -708,11 +708,11 @@ long jx_parse_array(jx_cntx * cntx, const char * src, long pos, long end_pos, bo
     return pos;
 }
 
-void jx_parse_obj_expected_token_error(jx_cntx * cntx)
+void jx_parse_obj_expected_token_error(jx_cntx *cntx)
 {
     jx_state state;
 
-    char * expected_tokens = "";
+    char *expected_tokens = "";
 
     if (cntx == NULL) {
         return;
@@ -736,10 +736,10 @@ void jx_parse_obj_expected_token_error(jx_cntx * cntx)
     jx_set_error(cntx, JX_ERROR_EXPECTED_TOKEN, cntx->line, cntx->col, expected_tokens);
 }
 
-long jx_parse_object(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+long jx_parse_object(jx_cntx *cntx, const char *src, long pos, long end_pos, bool *done)
 {
-    jx_frame * frame;
-    jx_value * value;
+    jx_frame *frame;
+    jx_value *value;
 
     jx_token token;
     jx_state state;
@@ -839,9 +839,9 @@ long jx_parse_object(jx_cntx * cntx, const char * src, long pos, long end_pos, b
     return pos;
 }
 
-long jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+long jx_parse_number(jx_cntx *cntx, const char *src, long pos, long end_pos, bool *done)
 {
-    jx_frame * frame;
+    jx_frame *frame;
     jx_state state;
 
     char c;
@@ -962,7 +962,7 @@ long jx_parse_number(jx_cntx * cntx, const char * src, long pos, long end_pos, b
     return pos;
 }
 
-long jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+long jx_parse_unicode_seq(jx_cntx *cntx, const char *src, long pos, long end_pos, bool *done)
 {
     jx_state state;
 
@@ -1085,12 +1085,12 @@ long jx_parse_unicode_seq(jx_cntx * cntx, const char * src, long pos, long end_p
     return pos;
 }
 
-long jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+long jx_parse_string(jx_cntx *cntx, const char *src, long pos, long end_pos, bool *done)
 {
-    jx_frame * frame;
-    jx_value * str;
+    jx_frame *frame;
+    jx_value *str;
 
-    unsigned char * buf;
+    unsigned char *buf;
 
     jx_state state;
 
@@ -1251,7 +1251,7 @@ long jx_parse_string(jx_cntx * cntx, const char * src, long pos, long end_pos, b
     return pos;
 }
 
-long jx_parse_keyword(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+long jx_parse_keyword(jx_cntx *cntx, const char *src, long pos, long end_pos, bool *done)
 {
     if (cntx == NULL || src == NULL || done == NULL) {
         return -1;
@@ -1302,7 +1302,7 @@ long jx_parse_keyword(jx_cntx * cntx, const char * src, long pos, long end_pos, 
     return pos;
 }
 
-long jx_parse_utf8(jx_cntx * cntx, const char * src, long pos, long end_pos, bool * done)
+long jx_parse_utf8(jx_cntx *cntx, const char *src, long pos, long end_pos, bool *done)
 {
     if (cntx == NULL || src == NULL || done == NULL) {
         return -1;
@@ -1349,7 +1349,7 @@ long jx_parse_utf8(jx_cntx * cntx, const char * src, long pos, long end_pos, boo
     return pos;
 }
 
-long jx_parse_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
+long jx_parse_token(jx_cntx *cntx, const char *src, long pos, long end_pos)
 {
     jx_mode mode;
 
@@ -1435,7 +1435,7 @@ long jx_parse_token(jx_cntx * cntx, const char * src, long pos, long end_pos)
     return pos;
 }
 
-int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
+int jx_parse_json(jx_cntx *cntx, const char *src, long n_bytes)
 {
     long pos;
     long end_pos;
@@ -1606,9 +1606,9 @@ int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes)
     return jx_get_mode(cntx) == JX_MODE_DONE;
 }
 
-jx_value * jx_get_result(jx_cntx * cntx)
+jx_value *jx_get_result(jx_cntx *cntx)
 {
-    jx_value * ret;
+    jx_value *ret;
 
     if (cntx == NULL) {
         return NULL;

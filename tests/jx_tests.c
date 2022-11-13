@@ -107,9 +107,9 @@ struct json_test
     { false, "{ \"\" : " }
 };
 
-void sum_func(jx_value * number, void * ptr)
+void sum_func(jx_value *number, void *ptr)
 {
-    double * sum;
+    double *sum;
 
     if (number == NULL || jxv_get_type(number) != JX_TYPE_NUMBER) {
         return;
@@ -124,10 +124,10 @@ void sum_func(jx_value * number, void * ptr)
     *sum += jxv_get_number(number);
 }
 
-bool iterate_array(jx_value * array, void * ptr, void (*f)(jx_value * value, void * ptr))
+bool iterate_array(jx_value *array, void *ptr, void (*f)(jx_value *value, void *ptr))
 {
     int i;
-    jx_value * value;
+    jx_value *value;
 
     if (array == NULL || jxv_get_type(array) != JX_TYPE_ARRAY) {
         return false;
@@ -150,8 +150,8 @@ bool execute_muli_part_parse_test()
 {
     int i;
 
-    jx_cntx * cntx;
-    jx_value * array;
+    jx_cntx *cntx;
+    jx_value *array;
 
     double sum = 0.0;
     double expected_sum = 2050.0;
@@ -206,11 +206,11 @@ bool execute_muli_part_parse_test()
     return true;
 }
 
-jx_value * parse_json_from_file(const char * filename)
+jx_value *parse_json_from_file(const char *filename)
 {
-    jx_cntx * cntx;
+    jx_cntx *cntx;
 
-    jx_value * obj;
+    jx_value *obj;
 
     if ((cntx = jx_new()) == NULL) {
         fprintf(stderr, "Error allocating context: %s\n", strerror(errno));
@@ -237,10 +237,10 @@ jx_value * parse_json_from_file(const char * filename)
     return obj;
 }
 
-jx_value * parse_json_from_file2(const char * filename)
+jx_value *parse_json_from_file2(const char *filename)
 {
-    jx_cntx * cntx;
-    jx_value * object;
+    jx_cntx *cntx;
+    jx_value *object;
 
     int fd, bytes_read;
 
@@ -263,7 +263,7 @@ jx_value * parse_json_from_file2(const char * filename)
     }
 
     while ((bytes_read = read(fd, buf, 2048)) > 0) {
-        char * ptr = buf;
+        char *ptr = buf;
 
         // Feed json to parser one-byte at a time as a stress test
         // BAD practice in general
@@ -292,12 +292,12 @@ jx_value * parse_json_from_file2(const char * filename)
 
 bool strings_test()
 {
-    jx_value * arr;
+    jx_value *arr;
 
     int i, max;
     bool success;
 
-    const char * string_tests[] = {
+    const char *string_tests[] = {
         "",
         ",{\"foo\":{}}],[[[\\,,,]",
 
@@ -322,7 +322,7 @@ bool strings_test()
     success = true;
 
     for (i = 0; i < jxa_get_length(arr); i++) {
-        char * str;
+        char *str;
 
         str = jxs_get_str(jxa_get(arr, i));
 
@@ -355,7 +355,7 @@ bool strings_test()
 
 bool execute_ext_utf8_pi_test()
 {
-    jx_cntx * cntx;
+    jx_cntx *cntx;
 
     printf("Testing extension [JX_EXT_UTF8_PI]\n");
 
@@ -387,8 +387,8 @@ bool execute_simple_tests()
     int n_tests, n_passed;
     bool output = false;
 
-    jx_cntx * cntx;
-    jx_value * value;
+    jx_cntx *cntx;
+    jx_value *value;
 
     printf("Executing simple tests:\n");
 
@@ -466,8 +466,8 @@ bool run_tests()
 
 bool validate_json_string(const char * json)
 {
-    jx_cntx * cntx;
-    jx_value * value;
+    jx_cntx *cntx;
+    jx_value *value;
 
     if (json == NULL) {
         return false;
@@ -505,9 +505,9 @@ void print_usage()
     );
 }
 
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 {
-    char * json;
+    char *json;
     char opt;
     int i, j, t, len;
 

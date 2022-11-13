@@ -98,9 +98,9 @@ typedef enum
 
 typedef struct
 {
-    jx_value * value;
-    jx_value * return_value;
-    jx_value * key;
+    jx_value *value;
+    jx_value *return_value;
+    jx_value *key;
 
     jx_state state;
 
@@ -116,7 +116,7 @@ typedef struct
 
     int tab_stop_width;
 
-    jx_value * object_stack;
+    jx_value *object_stack;
 
     uint16_t code[2];
     int code_index, shifts;
@@ -141,31 +141,31 @@ struct jx_cntx;
 typedef struct jx_cntx jx_cntx;
 #endif
 
-jx_cntx * jx_new();
-void jx_free(jx_cntx * cntx);
+jx_cntx *jx_new();
+void jx_free(jx_cntx *cntx);
 
 #ifdef JX_INTERNAL
-void jx_set_error(jx_cntx * cntx, jx_error error, ...);
+void jx_set_error(jx_cntx *cntx, jx_error error, ...);
 
-jx_frame * jx_top(jx_cntx * cntx);
-bool jx_push_mode(jx_cntx * cntx, jx_mode mode);
-void jx_pop_mode(jx_cntx * cntx);
-void jx_set_mode(jx_cntx * cntx, jx_mode mode);
-jx_mode jx_get_mode(jx_cntx * cntx);
-void jx_set_state(jx_cntx * cntx, jx_state state);
-jx_state jx_get_state(jx_cntx * cntx);
-void jx_set_value(jx_cntx * cntx, jx_value * value);
-jx_value * jx_get_value(jx_cntx * cntx);
-void jx_set_return(jx_cntx * cntx, jx_value * value);
-jx_value * jx_get_return(jx_cntx * cntx);
+jx_frame *jx_top(jx_cntx *cntx);
+bool jx_push_mode(jx_cntx *cntx, jx_mode mode);
+void jx_pop_mode(jx_cntx *cntx);
+void jx_set_mode(jx_cntx *cntx, jx_mode mode);
+jx_mode jx_get_mode(jx_cntx *cntx);
+void jx_set_state(jx_cntx *cntx, jx_state state);
+jx_state jx_get_state(jx_cntx *cntx);
+void jx_set_value(jx_cntx *cntx, jx_value *value);
+jx_value *jx_get_value(jx_cntx *cntx);
+void jx_set_return(jx_cntx *cntx, jx_value *value);
+jx_value *jx_get_return(jx_cntx *cntx);
 #endif
 
-jx_error jx_get_error(jx_cntx * cntx);
-const char * const jx_get_error_message(jx_cntx * cntx);
+jx_error jx_get_error(jx_cntx *cntx);
+const char * const jx_get_error_message(jx_cntx *cntx);
 
-void jx_set_tab_stop_width(jx_cntx * cntx, int tab_width);
-void jx_set_extensions(jx_cntx * cntx, jx_ext_set ext);
+void jx_set_tab_stop_width(jx_cntx *cntx, int tab_width);
+void jx_set_extensions(jx_cntx *cntx, jx_ext_set ext);
 
-int jx_parse_json(jx_cntx * cntx, const char * src, long n_bytes);
+int jx_parse_json(jx_cntx *cntx, const char *src, long n_bytes);
 
-jx_value * jx_get_result(jx_cntx * cntx);
+jx_value *jx_get_result(jx_cntx * cntx);

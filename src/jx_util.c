@@ -41,10 +41,10 @@
 
 #define JX_MAX_READ_BUF_SIZE 8192
 
-ssize_t jx_read(jx_cntx * cntx, int fd, size_t n_bytes)
+ssize_t jx_read(jx_cntx *cntx, int fd, size_t n_bytes)
 {
     long n_read;
-    char * buf;
+    char *buf;
 
     if (n_bytes == 0) {
         return -1;
@@ -77,7 +77,7 @@ ssize_t jx_read(jx_cntx * cntx, int fd, size_t n_bytes)
     return n_read;
 }
 
-ssize_t jx_read_block(jx_cntx * cntx, int fd, ssize_t n_bytes)
+ssize_t jx_read_block(jx_cntx *cntx, int fd, ssize_t n_bytes)
 {
     ssize_t n_remaining, n_read;
 
@@ -101,7 +101,7 @@ ssize_t jx_read_block(jx_cntx * cntx, int fd, ssize_t n_bytes)
     return n_bytes - n_remaining;
 }
 
-jx_value * jx_obj_from_file(jx_cntx * cntx, const char * filename)
+jx_value *jx_obj_from_file(jx_cntx *cntx, const char *filename)
 {
     int fd, n_read;
 
@@ -123,7 +123,7 @@ jx_value * jx_obj_from_file(jx_cntx * cntx, const char * filename)
     return jx_get_result(cntx);
 }
 
-void jx_set_read_buffer_size(jx_cntx * cntx, size_t sz)
+void jx_set_read_buffer_size(jx_cntx *cntx, size_t sz)
 {
     cntx->read_buffer_size = sz;
 }

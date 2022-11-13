@@ -38,7 +38,7 @@
 
 #include <jx_value.h>
 
-jx_type jxv_get_type(jx_value * value)
+jx_type jxv_get_type(jx_value *value)
 {
     if (value == NULL) {
         return JX_TYPE_UNDEF;
@@ -47,9 +47,9 @@ jx_type jxv_get_type(jx_value * value)
     return value->type;
 }
 
-jx_value * jxv_new(jx_type type)
+jx_value *jxv_new(jx_type type)
 {
-    jx_value * value;
+    jx_value *value;
 
     if ((value = calloc(1, sizeof(jx_value))) == NULL) {
         return NULL;
@@ -60,9 +60,9 @@ jx_value * jxv_new(jx_type type)
     return value;
 }
 
-jx_value * jxa_new(size_t capacity)
+jx_value *jxa_new(size_t capacity)
 {
-    jx_value * array;
+    jx_value *array;
 
     if ((array = jxv_new(JX_TYPE_ARRAY)) == NULL) {
         return NULL;
@@ -78,7 +78,7 @@ jx_value * jxa_new(size_t capacity)
     return array;
 }
 
-size_t jxa_get_length(jx_value * array)
+size_t jxa_get_length(jx_value *array)
 {
     if (array == NULL || array->type != JX_TYPE_ARRAY) {
         return 0;
@@ -87,9 +87,9 @@ size_t jxa_get_length(jx_value * array)
     return array->length;
 }
 
-jx_type jxa_get_type(jx_value * array, size_t i)
+jx_type jxa_get_type(jx_value *array, size_t i)
 {
-    jx_value * value;
+    jx_value *value;
 
     if ((value = jxa_get(array, i)) == NULL) {
         return JX_TYPE_UNDEF;
@@ -98,7 +98,7 @@ jx_type jxa_get_type(jx_value * array, size_t i)
     return value->type;
 }
 
-jx_value * jxa_get(jx_value * array, size_t i)
+jx_value *jxa_get(jx_value *array, size_t i)
 {
     if (array == NULL || array->type != JX_TYPE_ARRAY || i >= array->length) {
         return NULL;
@@ -107,14 +107,14 @@ jx_value * jxa_get(jx_value * array, size_t i)
     return array->v.vpp[i];
 }
 
-bool jxa_push(jx_value * array, jx_value * value)
+bool jxa_push(jx_value *array, jx_value *value)
 {
     if (array == NULL || array->type != JX_TYPE_ARRAY) {
         return false;
     }
 
     if (array->length == array->size) {
-        void ** newArray;
+        void **newArray;
         size_t newSize;
 
         newSize = array->size * 2;
@@ -133,7 +133,7 @@ bool jxa_push(jx_value * array, jx_value * value)
     return true;
 }
 
-jx_value * jxa_pop(jx_value * array)
+jx_value *jxa_pop(jx_value * array)
 {
     if (array == NULL || array->type != JX_TYPE_ARRAY || array->length == 0) {
         return NULL;
@@ -142,7 +142,7 @@ jx_value * jxa_pop(jx_value * array)
     return array->v.vpp[--array->length];
 }
 
-jx_value * jxa_top(jx_value * array)
+jx_value *jxa_top(jx_value *array)
 {
     if (array == NULL || array->type != JX_TYPE_ARRAY || array->length == 0) {
         return NULL;
@@ -151,9 +151,9 @@ jx_value * jxa_top(jx_value * array)
     return array->v.vpp[array->length - 1];
 }
 
-bool jxa_push_number(jx_value * array, double num)
+bool jxa_push_number(jx_value *array, double num)
 {
-    jx_value * value;
+    jx_value *value;
 
     if (array == NULL || array->type != JX_TYPE_ARRAY) {
         return false;
@@ -171,9 +171,9 @@ bool jxa_push_number(jx_value * array, double num)
     return true;
 }
 
-double jxa_get_number(jx_value * array, size_t i)
+double jxa_get_number(jx_value *array, size_t i)
 {
-    jx_value * value;
+    jx_value *value;
 
     value = jxa_get(array, i);
 
@@ -184,9 +184,9 @@ double jxa_get_number(jx_value * array, size_t i)
     return value->v.vf;
 }
 
-bool jxa_push_ptr(jx_value * array, void * ptr)
+bool jxa_push_ptr(jx_value *array, void *ptr)
 {
-    jx_value * value;
+    jx_value *value;
 
     if (array == NULL || array->type != JX_TYPE_ARRAY) {
         return false;
@@ -206,7 +206,7 @@ bool jxa_push_ptr(jx_value * array, void * ptr)
     return true;
 }
 
-void * jxa_get_ptr(jx_value * array, size_t i)
+void *jxa_get_ptr(jx_value *array, size_t i)
 {
     if (array == NULL || array->type != JX_TYPE_ARRAY) {
         return NULL;
@@ -215,7 +215,7 @@ void * jxa_get_ptr(jx_value * array, size_t i)
     return jxv_get_ptr(jxa_get(array, i));
 }
 
-void * jxv_get_ptr(jx_value * value)
+void *jxv_get_ptr(jx_value *value)
 {
     if (value == NULL || value->type != JX_TYPE_PTR) {
         return NULL;
@@ -224,7 +224,7 @@ void * jxv_get_ptr(jx_value * value)
     return value->v.vp;
 }
 
-void jx_trie_reduce_key_charset(char * dst_key, unsigned char * src_key, size_t dst_size)
+void jx_trie_reduce_key_charset(char *dst_key, unsigned char *src_key, size_t dst_size)
 {
     int src_i;
     int dst_i;
@@ -249,7 +249,7 @@ void jx_trie_reduce_key_charset(char * dst_key, unsigned char * src_key, size_t 
     dst_key[dst_i] = '\0';
 }
 
-void jx_trie_expand_key_charset(unsigned char * dst_key, char * src_key, size_t dst_size)
+void jx_trie_expand_key_charset(unsigned char *dst_key, char *src_key, size_t dst_size)
 {
     int src_i;
     int dst_i;
@@ -279,7 +279,7 @@ void jx_trie_expand_key_charset(unsigned char * dst_key, char * src_key, size_t 
  *
  * The node for the last character in the string is returned, so that the
  * caller can set the object on the it (and free the old one, if required). */
-jx_trie_node * jx_trie_add_key(jx_trie_node * node, char * key, int key_i)
+jx_trie_node *jx_trie_add_key(jx_trie_node *node, char *key, int key_i)
 {
     if (node == NULL || key == NULL) {
         return NULL;
@@ -310,7 +310,7 @@ jx_trie_node * jx_trie_add_key(jx_trie_node * node, char * key, int key_i)
 /* Traverse the tree in an order determined by the value of each character in
  * the key, but don't allocate new child nodes, return NULL if the key cannot
  * be found. */
-jx_trie_node * jx_trie_get_key(jx_trie_node * node, char * key, int key_i)
+jx_trie_node *jx_trie_get_key(jx_trie_node *node, char *key, int key_i)
 {
     if (node == NULL || key == NULL) {
         return NULL;
@@ -333,14 +333,14 @@ jx_trie_node * jx_trie_get_key(jx_trie_node * node, char * key, int key_i)
 /* Traverse the tree in character order of the key, if an object is found,
  * remove the object from the tree. The object itself is not freed but
  * returned to the caller to be used, or freed if not needed. */
-jx_value * jx_trie_del_key(jx_trie_node * node, char * key, int key_i)
+jx_value *jx_trie_del_key(jx_trie_node *node, char *key, int key_i)
 {
     if (node == NULL || key == NULL) {
         return NULL;
     }
 
     if (key[key_i] == '\0') {
-        jx_value * value = node->value;
+        jx_value *value = node->value;
 
         node->value = NULL;
 
@@ -353,7 +353,7 @@ jx_value * jx_trie_del_key(jx_trie_node * node, char * key, int key_i)
             return NULL;
         }
 
-        jx_value * value = jx_trie_del_key(node->child_nodes[next_i], key, ++key_i);
+        jx_value *value = jx_trie_del_key(node->child_nodes[next_i], key, ++key_i);
 
         /* We have successfully found a key in the trie, check to see if the child
          * branch at our current index is empty and needs to be pruned. */
@@ -396,7 +396,7 @@ jx_value * jx_trie_del_key(jx_trie_node * node, char * key, int key_i)
  * will recursively call itself to visit child nodes, and invoke the callback function for each
  * node that has a stored object, passing the callback the key, stored object, and the pointer
  * passed as the fourth arugment of this function. */
- bool jx_trie_iterate_keys(jx_trie_node * node, jx_value * prefix, jxd_iter_cb cb_func, void * ptr)
+ bool jx_trie_iterate_keys(jx_trie_node *node, jx_value *prefix, jxd_iter_cb cb_func, void *ptr)
 {
     int i;
 
@@ -411,8 +411,8 @@ jx_value * jx_trie_del_key(jx_trie_node * node, char * key, int key_i)
     if (node->value != NULL) {
         int orig_key_size = (prefix->length / 2) + 1;
 
-        char * orig_key = alloca(orig_key_size);
-        char * prefix_key = jxs_get_str(prefix);
+        char *orig_key = alloca(orig_key_size);
+        char *prefix_key = jxs_get_str(prefix);
 
         jx_trie_expand_key_charset((unsigned char *)orig_key, prefix_key, orig_key_size);
 
@@ -430,7 +430,7 @@ jx_value * jx_trie_del_key(jx_trie_node * node, char * key, int key_i)
     return true;
 }
 
-void jx_trie_free_branch(jx_trie_node * node)
+void jx_trie_free_branch(jx_trie_node *node)
 {
     int i;
 
@@ -451,9 +451,9 @@ void jx_trie_free_branch(jx_trie_node * node)
     free(node);
 }
 
-jx_value * jxd_new()
+jx_value *jxd_new()
 {
-    jx_value * value;
+    jx_value *value;
 
     if ((value = jxv_new(JX_TYPE_OBJECT)) == NULL) {
         return NULL;
@@ -467,12 +467,12 @@ jx_value * jxd_new()
     return value;
 }
 
-bool jxd_put(jx_value * dict, char * key, jx_value * value)
+bool jxd_put(jx_value *dict, char *key, jx_value *value)
 {
-    char * lookup_key;
+    char *lookup_key;
     int lookup_key_size;
 
-    jx_trie_node * node;
+    jx_trie_node *node;
 
     if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL || value == NULL) {
         return false;
@@ -498,12 +498,12 @@ bool jxd_put(jx_value * dict, char * key, jx_value * value)
     return true;
 }
 
-jx_value * jxd_get(jx_value * dict, char * key)
+jx_value *jxd_get(jx_value *dict, char *key)
 {
-    char * lookup_key;
+    char *lookup_key;
     int lookup_key_size;
 
-    jx_trie_node * node;
+    jx_trie_node *node;
 
     if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL) {
         return NULL;
@@ -523,9 +523,9 @@ jx_value * jxd_get(jx_value * dict, char * key)
     return node->value;
 }
 
-jx_value * jxd_del(jx_value * dict, char * key)
+jx_value *jxd_del(jx_value * dict, char *key)
 {
-    char * lookup_key;
+    char *lookup_key;
     int lookup_key_size;
 
     if (dict == NULL || dict->type != JX_TYPE_OBJECT || key == NULL) {
@@ -540,20 +540,20 @@ jx_value * jxd_del(jx_value * dict, char * key)
     return jx_trie_del_key(dict->v.vp, lookup_key, 0);
 }
 
-bool jxd_del_free(jx_value * dict, char * key)
+bool jxd_del_free(jx_value *dict, char *key)
 {
-    jx_value * v = jxd_del(dict, key);
+    jx_value *v = jxd_del(dict, key);
 
     jxv_free(v);
 
     return v != NULL;
 }
 
-bool jxd_iterate(jx_value * dict, jxd_iter_cb cb_func, void * ptr)
+bool jxd_iterate(jx_value *dict, jxd_iter_cb cb_func, void *ptr)
 {
     bool success;
 
-    jx_value * prefix;
+    jx_value *prefix;
 
     if (dict == NULL || dict->type != JX_TYPE_OBJECT || cb_func == NULL) {
         return false;
@@ -572,14 +572,14 @@ bool jxd_iterate(jx_value * dict, jxd_iter_cb cb_func, void * ptr)
     return success;
 }
 
-bool jxd_has_key(jx_value * dict, char * key)
+bool jxd_has_key(jx_value *dict, char *key)
 {
     return jxd_get(dict, key) != NULL;
 }
 
-jx_type jxd_get_type(jx_value * dict, char * key, bool * found)
+jx_type jxd_get_type(jx_value *dict, char *key, bool *found)
 {
-    jx_value * value = jxd_get(dict, key);
+    jx_value *value = jxd_get(dict, key);
 
     if (found != NULL) {
         *found = value != NULL;
@@ -588,9 +588,9 @@ jx_type jxd_get_type(jx_value * dict, char * key, bool * found)
     return jxv_get_type(value);
 }
 
-bool jxd_put_number(jx_value * dict, char * key, double num)
+bool jxd_put_number(jx_value *dict, char *key, double num)
 {
-    jx_value * value = jxv_number_new(num);
+    jx_value *value = jxv_number_new(num);
 
     if (value == NULL) {
         return false;
@@ -604,9 +604,9 @@ bool jxd_put_number(jx_value * dict, char * key, double num)
     return true;
 }
 
-double jxd_get_number(jx_value * dict, char * key, bool * found)
+double jxd_get_number(jx_value *dict, char *key, bool *found)
 {
-    jx_value * value = jxd_get(dict, key);
+    jx_value *value = jxd_get(dict, key);
 
     if (found) {
         *found = jxv_get_type(value) == JX_TYPE_NUMBER;
@@ -615,14 +615,14 @@ double jxd_get_number(jx_value * dict, char * key, bool * found)
     return jxv_get_number(value);
 }
 
-bool jxd_put_bool(jx_value * dict, char * key, bool value)
+bool jxd_put_bool(jx_value *dict, char *key, bool value)
 {
     return jxd_put(dict, key, jxv_bool_new(value));
 }
 
-bool jxd_get_bool(jx_value * dict, char * key, bool * found)
+bool jxd_get_bool(jx_value *dict, char *key, bool *found)
 {
-    jx_value * value = jxd_get(dict, key);
+    jx_value *value = jxd_get(dict, key);
 
     if (found) {
         *found = jxv_get_type(value) == JX_TYPE_BOOL;
@@ -631,9 +631,9 @@ bool jxd_get_bool(jx_value * dict, char * key, bool * found)
     return jxv_get_bool(value);
 }
 
-bool jxd_put_string(jx_value * dict, char * key, char * value)
+bool jxd_put_string(jx_value *dict, char *key, char *value)
 {
-    jx_value * str = jxs_new(value);
+    jx_value *str = jxs_new(value);
 
     if (!str) {
         return false;
@@ -647,9 +647,9 @@ bool jxd_put_string(jx_value * dict, char * key, char * value)
     return true;
 }
 
-char * jxd_get_string(jx_value * dict, char * key, bool * found)
+char * jxd_get_string(jx_value *dict, char *key, bool *found)
 {
-    jx_value * str = jxd_get(dict, key);
+    jx_value *str = jxd_get(dict, key);
 
     if (found) {
         *found = jxv_get_type(str) == JX_TYPE_STRING;
@@ -658,9 +658,9 @@ char * jxd_get_string(jx_value * dict, char * key, bool * found)
     return jxs_get_str(str);
 }
 
-jx_value * jxv_number_new(double num)
+jx_value *jxv_number_new(double num)
 {
-    jx_value * value;
+    jx_value *value;
 
     if ((value = jxv_new(JX_TYPE_NUMBER)) == NULL) {
         return NULL;
@@ -671,7 +671,7 @@ jx_value * jxv_number_new(double num)
     return value;
 }
 
-double jxv_get_number(jx_value * v)
+double jxv_get_number(jx_value *v)
 {
     if (v == NULL || v->type != JX_TYPE_NUMBER) {
         return NAN;
@@ -680,9 +680,9 @@ double jxv_get_number(jx_value * v)
     return v->v.vf;
 }
 
-jx_value * jxs_new(const char * src)
+jx_value *jxs_new(const char * src)
 {
-    jx_value * str;
+    jx_value *str;
 
     if ((str = jxv_new(JX_TYPE_STRING)) == NULL) {
         return NULL;
@@ -716,7 +716,7 @@ jx_value * jxs_new(const char * src)
     return str;
 }
 
-char * jxs_get_str(jx_value * str)
+char *jxs_get_str(jx_value *str)
 {
     if (str == NULL || str->type != JX_TYPE_STRING) {
         return NULL;
@@ -725,10 +725,10 @@ char * jxs_get_str(jx_value * str)
     return str->v.vp;
 }
 
-bool jxs_resize(jx_value * str, size_t size)
+bool jxs_resize(jx_value *str, size_t size)
 {
     size_t new_size;
-    char * new_str;
+    char *new_str;
 
     if (str->size >= size) {
         return false;
@@ -752,7 +752,7 @@ bool jxs_resize(jx_value * str, size_t size)
     return true;
 }
 
-bool jxs_append_str(jx_value * dst, char * src)
+bool jxs_append_str(jx_value *dst, char *src)
 {
     int new_length;
 
@@ -775,7 +775,7 @@ bool jxs_append_str(jx_value * dst, char * src)
     return true;
 }
 
-bool jxs_append_fmt(jx_value * dst, char * fmt, ...)
+bool jxs_append_fmt(jx_value *dst, char *fmt, ...)
 {
     int new_length;
     va_list ap;
@@ -803,7 +803,7 @@ bool jxs_append_fmt(jx_value * dst, char * fmt, ...)
     return true;
 }
 
-bool jxs_append_chr(jx_value * dst, char c)
+bool jxs_append_chr(jx_value *dst, char c)
 {
     if (dst == NULL || dst->type != JX_TYPE_STRING) {
         return false;
@@ -819,18 +819,18 @@ bool jxs_append_chr(jx_value * dst, char c)
         }
     }
 
-    ((char*)dst->v.vp)[dst->length++] = c;
-    ((char*)dst->v.vp)[dst->length] = '\0';
+    ((char *)dst->v.vp)[dst->length++] = c;
+    ((char *)dst->v.vp)[dst->length] = '\0';
 
     return true;
 }
 
-bool jxs_push(jx_value * str, char c)
+bool jxs_push(jx_value *str, char c)
 {
     return jxs_append_chr(str, c);
 }
 
-char jxs_pop(jx_value * str)
+char jxs_pop(jx_value *str)
 {
     char * ptr;
     char c;
@@ -848,7 +848,7 @@ char jxs_pop(jx_value * str)
     return c;
 }
 
-jx_value * jxv_null()
+jx_value *jxv_null()
 {
     static bool init = false;
     static jx_value val_null;
@@ -861,7 +861,7 @@ jx_value * jxv_null()
     return &val_null;
 }
 
-bool jxv_is_null(jx_value * value)
+bool jxv_is_null(jx_value *value)
 {
     if (value == NULL) {
         return false;
@@ -870,7 +870,7 @@ bool jxv_is_null(jx_value * value)
     return value->type == JX_TYPE_NULL;
 }
 
-jx_value * jxv_bool_new(bool value)
+jx_value *jxv_bool_new(bool value)
 {
     static bool init = false;
 
@@ -890,7 +890,7 @@ jx_value * jxv_bool_new(bool value)
     return (value) ? &val_true : &val_false;
 }
 
-bool jxv_get_bool(jx_value * value)
+bool jxv_get_bool(jx_value *value)
 {
     if (value == NULL || value->type != JX_TYPE_BOOL) {
         return false;
@@ -899,7 +899,7 @@ bool jxv_get_bool(jx_value * value)
     return value->v.vb;
 }
 
-void jxv_free(jx_value * value)
+void jxv_free(jx_value *value)
 {
     jx_type type;
 

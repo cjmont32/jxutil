@@ -54,8 +54,8 @@ typedef struct jx_value_t
     union {
         bool vb;
         double vf;
-        void * vp;
-        void ** vpp;
+        void *vp;
+        void **vpp;
     } v;
 
     jx_type type;
@@ -66,9 +66,9 @@ typedef struct jx_value_t
 
 typedef struct jx_trie_node_t
 {
-    struct jx_trie_node_t * child_nodes[16];
+    struct jx_trie_node_t *child_nodes[16];
 
-    struct jx_value_t * value;
+    struct jx_value_t *value;
 
     char byte;
 } jx_trie_node;
@@ -81,53 +81,53 @@ typedef struct jx_iter_t jx_iter;
 
 #endif
 
-typedef void (* jxd_iter_cb)(const char * key, jx_value * value, void * ptr);
+typedef void (*jxd_iter_cb)(const char *key, jx_value *value, void *ptr);
 
-jx_type jxv_get_type(jx_value * value);
+jx_type jxv_get_type(jx_value *value);
 
-jx_value * jxa_new(size_t capacity);
-size_t jxa_get_length(jx_value * array);
-jx_type jxa_get_type(jx_value * array, size_t i);
-jx_value * jxa_get(jx_value * array, size_t i);
-bool jxa_push(jx_value * array, jx_value * value);
-jx_value * jxa_pop(jx_value * array);
-jx_value * jxa_top(jx_value * array);
-bool jxa_push_number(jx_value * array, double num);
-double jxa_get_number(jx_value * arr, size_t i);
-bool jxa_push_ptr(jx_value * array, void * ptr);
-void * jxa_get_ptr(jx_value * array, size_t i);
-void * jxv_get_ptr(jx_value * value);
+jx_value *jxa_new(size_t capacity);
+size_t jxa_get_length(jx_value *array);
+jx_type jxa_get_type(jx_value *array, size_t i);
+jx_value *jxa_get(jx_value *array, size_t i);
+bool jxa_push(jx_value *array, jx_value *value);
+jx_value *jxa_pop(jx_value *array);
+jx_value *jxa_top(jx_value *array);
+bool jxa_push_number(jx_value *array, double num);
+double jxa_get_number(jx_value *arr, size_t i);
+bool jxa_push_ptr(jx_value *array, void *ptr);
+void *jxa_get_ptr(jx_value *array, size_t i);
+void *jxv_get_ptr(jx_value *value);
 
-jx_value * jxd_new();
-bool jxd_put(jx_value * dict, char * key, jx_value * value);
-jx_value * jxd_get(jx_value * dict, char * key);
-jx_value * jxd_del(jx_value * dict, char * key);
-bool jxd_del_free(jx_value * dict, char * key);
-bool jxd_has(jx_value * dict, char * key);
-jx_type jxd_get_type(jx_value * dict, char * key, bool * found);
-bool jxd_put_number(jx_value * dict, char * key, double num);
-double jxd_get_number(jx_value * dict, char * key, bool * found);
-bool jxd_put_bool(jx_value * dict, char * key, bool value);
-bool jxd_get_bool(jx_value * dict, char * key, bool * found);
-bool jxd_put_string(jx_value * dict, char * key, char * value);
-char * jxd_get_string(jx_value * dict, char * key, bool * found);
-bool jxd_iterate(jx_value * dict, jxd_iter_cb cb_func, void * ptr);
+jx_value *jxd_new();
+bool jxd_put(jx_value *dict, char *key, jx_value *value);
+jx_value *jxd_get(jx_value *dict, char *key);
+jx_value *jxd_del(jx_value *dict, char *key);
+bool jxd_del_free(jx_value *dict, char *key);
+bool jxd_has(jx_value *dict, char *key);
+jx_type jxd_get_type(jx_value *dict, char *key, bool *found);
+bool jxd_put_number(jx_value *dict, char *key, double num);
+double jxd_get_number(jx_value *dict, char *key, bool *found);
+bool jxd_put_bool(jx_value *dict, char *key, bool value);
+bool jxd_get_bool(jx_value *dict, char *key, bool *found);
+bool jxd_put_string(jx_value *dict, char *key, char *value);
+char *jxd_get_string(jx_value *dict, char *key, bool *found);
+bool jxd_iterate(jx_value *dict, jxd_iter_cb cb_func, void *ptr);
 
-jx_value * jxv_number_new(double num);
-double jxv_get_number(jx_value * value);
+jx_value *jxv_number_new(double num);
+double jxv_get_number(jx_value *value);
 
-jx_value * jxs_new(const char * src);
-bool jxs_append_str(jx_value * dst, char * src);
-bool jxs_append_fmt(jx_value * dst, char * fmt, ...);
-bool jxs_append_chr(jx_value * dst, char c);
-bool jxs_push(jx_value * str, char c);
-char jxs_pop(jx_value * str);
-char * jxs_get_str(jx_value * str);
+jx_value *jxs_new(const char *src);
+bool jxs_append_str(jx_value *dst, char *src);
+bool jxs_append_fmt(jx_value *dst, char *fmt, ...);
+bool jxs_append_chr(jx_value *dst, char c);
+bool jxs_push(jx_value *str, char c);
+char jxs_pop(jx_value *str);
+char *jxs_get_str(jx_value *str);
 
-jx_value * jxv_null();
-bool jxv_is_null(jx_value * value);
+jx_value *jxv_null();
+bool jxv_is_null(jx_value *value);
 
-jx_value * jxv_bool_new(bool value);
-bool jxv_get_bool(jx_value * value);
+jx_value *jxv_bool_new(bool value);
+bool jxv_get_bool(jx_value *value);
 
-void jxv_free(jx_value * value);
+void jxv_free(jx_value *value);

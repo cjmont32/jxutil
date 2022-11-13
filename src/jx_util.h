@@ -31,7 +31,7 @@
 
 #include <jx_json.h>
 
-ssize_t jx_read(jx_cntx * cntx, int fd, size_t n_bytes);
-ssize_t jx_read_block(jx_cntx * cntx, int fd, ssize_t n_bytes);
-jx_value * jx_obj_from_file(jx_cntx * cntx, const char * filename);
-void jx_set_read_buffer_size(jx_cntx * cntx, size_t sz);
+ssize_t jx_read(jx_cntx *cntx, int fd, size_t n_bytes);
+ssize_t jx_read_block(jx_cntx *cntx, int fd, ssize_t n_bytes);
+jx_value *jx_obj_from_file(jx_cntx *cntx, const char *filename);
+void jx_set_read_buffer_size(jx_cntx *cntx, size_t sz);
