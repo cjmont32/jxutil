@@ -117,9 +117,10 @@ struct ext_token
     jx_ext_set value;
 } ext_token_types[] =
 {
-    { "utf8_pi", JX_EXT_UTF8_PI },
-    { "array_comma", JX_EXT_ARRAY_TRAILING_COMMA },
-    { "object_comma", JX_EXT_OBJECT_TRAILING_COMMA },
+    { "all",            JX_EXT_UTF8_PI | JX_EXT_ARRAY_TRAILING_COMMA | JX_EXT_OBJECT_TRAILING_COMMA },
+    { "utf8_pi",        JX_EXT_UTF8_PI },
+    { "array_comma",    JX_EXT_ARRAY_TRAILING_COMMA },
+    { "object_comma",   JX_EXT_OBJECT_TRAILING_COMMA },
     { NULL, 0 }
 };
 
@@ -587,7 +588,7 @@ void print_usage()
         "   -c json_string  Validate that json_string is syntatically correct.\n"
         "   -f path         Validate that file at <path> contains JSON that is syntatically correct.\n"
         "   -m ext_string   Comma seperated list of extensions to enable when validating JSON (with the -c or -f options).\n"
-        "                   Ext: { utf8_pi, array_comma, object_comma }.\n"
+        "                   Ext: { all, utf8_pi, array_comma, object_comma }.\n"
         "   -s              Serialize JSON if valid and output to stdout (with -c or -f options).\n"
         "   -e              Escape and enclose JSON output in string.\n"
         "   -n              Don't append newline character after JSON ouput.\n"
@@ -673,7 +674,7 @@ int main(int argc, char **argv)
                 else if (opt == 'm') {
                     if (i == argc - 1) {
                         cmd_action = SHOW_USAGE;
-                        i += 2;
+                        i++;
                         continue;
                     }
 
