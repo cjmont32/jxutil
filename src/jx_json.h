@@ -36,8 +36,10 @@
 
 #include <jx_value.h>
 
-#define JX_EXT_NONE     0
-#define JX_EXT_UTF8_PI  (1 << 0)
+#define JX_EXT_NONE                     0
+#define JX_EXT_UTF8_PI                  (1 << 0)
+#define JX_EXT_ARRAY_TRAILING_COMMA     (1 << 1)
+#define JX_EXT_OBJECT_TRAILING_COMMA    (1 << 2)
 
 typedef int jx_state;
 typedef unsigned int jx_ext_set;

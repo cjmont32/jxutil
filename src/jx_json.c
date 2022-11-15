@@ -678,7 +678,7 @@ long jx_parse_array(jx_cntx *cntx, const char *src, long pos, long end_pos, bool
         jx_set_state(cntx, JX_ARRAY_STATE_SEPARATOR);
     }
     else if (token == JX_TOKEN_ARRAY_END) {
-        if (jx_get_state(cntx) == JX_ARRAY_STATE_SEPARATOR) {
+        if (!(cntx->ext & JX_EXT_ARRAY_TRAILING_COMMA) && jx_get_state(cntx) == JX_ARRAY_STATE_SEPARATOR) {
             jx_set_error(cntx, JX_ERROR_UNEXPECTED_TOKEN, cntx->line, cntx->col, ",");
             return -1;
         }
@@ -769,9 +769,9 @@ long jx_parse_object(jx_cntx *cntx, const char *src, long pos, long end_pos, boo
             jx_set_return(cntx, NULL);
         }
         else if (state & JX_OBJ_STATE_ACCEPT_VALUE) {
-            jx_value * obj = jx_get_value(cntx);
+            jx_value *obj = jx_get_value(cntx);
 
-            char * key_str = jxs_get_str(frame->key);
+            char *key_str = jxs_get_str(frame->key);
 
             if (!jxd_put(obj, key_str, value)) {
                 jx_set_error(cntx, JX_ERROR_LIBC);
@@ -814,7 +814,13 @@ long jx_parse_object(jx_cntx *cntx, const char *src, long pos, long end_pos, boo
             return -1;
         }
 
-        jx_set_state(cntx, JX_OBJ_STATE_ACCEPT_KEY);
+        state = JX_OBJ_STATE_ACCEPT_KEY;
+
+        if (cntx->ext & JX_EXT_OBJECT_TRAILING_COMMA) {
+            state |= JX_OBJ_STATE_ACCEPT_CLOSE;
+        }
+
+        jx_set_state(cntx, state);
 
         pos++;
         cntx->col++;
@@ -934,7 +940,7 @@ long jx_parse_number(jx_cntx *cntx, const char *src, long pos, long end_pos, boo
 
     if (symbol_end) {
         if (state & JX_NUM_IS_VALID) {
-            jx_value * number;
+            jx_value *number;
 
             cntx->tok_buf[cntx->tok_buf_pos] = '\0';
             cntx->tok_buf_pos = 0;
@@ -1501,7 +1507,7 @@ int jx_parse_json(jx_cntx *cntx, const char *src, long n_bytes)
         }
 
         if (token == JX_TOKEN_ARRAY_BEGIN) {
-            jx_value * array;
+            jx_value *array;
 
             array = jxa_new(JX_DEFAULT_ARRAY_SIZE);
 
@@ -1523,7 +1529,7 @@ int jx_parse_json(jx_cntx *cntx, const char *src, long n_bytes)
             cntx->depth++;
         }
         else if (token == JX_TOKEN_OBJ_BEGIN) {
-            jx_value * obj;
+            jx_value *obj;
 
             obj = jxd_new();
 
@@ -1555,7 +1561,7 @@ int jx_parse_json(jx_cntx *cntx, const char *src, long n_bytes)
             cntx->inside_token = true;
         }
         else if (token == JX_TOKEN_STRING) {
-            jx_value * str;
+            jx_value *str;
 
             str = jxs_new(NULL);
 

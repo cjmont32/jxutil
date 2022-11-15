@@ -26,6 +26,7 @@ struct
     unsigned char verbose       : 1;
     unsigned char serialize     : 1;
     unsigned char escape        : 1;
+    unsigned char newline       : 1;
 } cmd_opts;
 
 struct json_test
@@ -109,6 +110,20 @@ struct json_test
     { false, "{ \"\" " },
     { false, "{ \"\" : " }
 };
+
+struct ext_token
+{
+    const char *name;
+    jx_ext_set value;
+} ext_token_types[] =
+{
+    { "utf8_pi", JX_EXT_UTF8_PI },
+    { "array_comma", JX_EXT_ARRAY_TRAILING_COMMA },
+    { "object_comma", JX_EXT_OBJECT_TRAILING_COMMA },
+    { NULL, 0 }
+};
+
+static jx_ext_set global_extensions;
 
 void sum_func(jx_value *number, void *ptr)
 {
@@ -482,6 +497,8 @@ bool validate_json_string(const char *json)
         return false;
     }
 
+    jx_set_extensions(cntx, global_extensions);
+
     jx_parse_json(cntx, json, strlen(json));
 
     if ((value = jx_get_result(cntx)) == NULL) {
@@ -501,6 +518,10 @@ bool validate_json_string(const char *json)
         }
 
         printf("%s", out);
+
+        if (!cmd_opts.newline) {
+            putchar('\n');
+        }
 
         free(out);
     }
@@ -522,6 +543,8 @@ bool validate_json_file(const char *path)
         return false;
     }
 
+    jx_set_extensions(cntx, global_extensions);
+
     value = jx_obj_from_file(cntx, path);
 
     if (value == NULL) {
@@ -542,6 +565,10 @@ bool validate_json_file(const char *path)
 
         printf("%s", json);
 
+        if (!cmd_opts.newline) {
+            putchar('\n');
+        }
+
         free(json);
     }
 
@@ -556,22 +583,52 @@ void print_usage()
     printf(
         "Usage: jx_tests [-asepv] [-c json_string] [-f file_path]\n"
         "   -a              Run all tests (default).\n"
+        "   -v              Enable verbose output.\n"
         "   -c json_string  Validate that json_string is syntatically correct.\n"
         "   -f path         Validate that file at <path> contains JSON that is syntatically correct.\n"
+        "   -m ext_string   Comma seperated list of extensions to enable when validating JSON (with the -c or -f options).\n"
+        "                   Ext: { utf8_pi, array_comma, object_comma }.\n"
         "   -s              Serialize JSON if valid and output to stdout (with -c or -f options).\n"
         "   -e              Escape and enclose JSON output in string.\n"
+        "   -n              Don't append newline character after JSON ouput.\n"
         "   -p              Halt execution before stopping.\n"
-        "   -v              Enable verbose output.\n"
     );
+}
+
+bool parse_extension_string(char *ext_str)
+{
+    char *token;
+    int i;
+
+    token = strtok(ext_str, ",");
+
+    while (token != NULL) {
+        for (i = 0; ext_token_types[i].name != NULL; i++) {
+            if (strcmp(token, ext_token_types[i].name) == 0) {
+                global_extensions |= ext_token_types[i].value;
+                break;
+            }
+        }
+
+        if (ext_token_types[i].name == NULL) {
+            fprintf(stderr, "Error: Unknown extension [%s]\n", token);
+            return false;
+        }
+
+        token = strtok(NULL, ",");
+    }
+
+    return true;
 }
 
 int main(int argc, char **argv)
 {
-    char *file, *json;
+    char *file, *json, *ext_str;
     char opt;
     int i, j, t, len;
 
     json = NULL;
+    ext_str = NULL;
     i = 1;
 
     while (i < argc) {
@@ -603,7 +660,7 @@ int main(int argc, char **argv)
                     json = argv[++i];
                 }
                 else if (opt == 'f') {
-                    if (i == argc -1 || cmd_action != DEFAULT) {
+                    if (i == argc - 1 || cmd_action != DEFAULT) {
                         cmd_action = SHOW_USAGE;
                         i += 2;
                         continue;
@@ -612,6 +669,19 @@ int main(int argc, char **argv)
                     cmd_action = CHECK_FILE;
 
                     file = argv[++i];
+                }
+                else if (opt == 'm') {
+                    if (i == argc - 1) {
+                        cmd_action = SHOW_USAGE;
+                        i += 2;
+                        continue;
+                    }
+
+                    i++;
+
+                    ext_str = alloca(strlen(argv[i]) + 1);
+
+                    strcpy(ext_str, argv[i]);
                 }
                 else if (opt == 's') {
                     cmd_opts.serialize = true;
@@ -625,6 +695,9 @@ int main(int argc, char **argv)
                 else if (opt == 'p') {
                     cmd_opts.halt = true;
                 }
+                else if (opt == 'n') {
+                    cmd_opts.newline = true;
+                }
                 else {
                     cmd_action = SHOW_USAGE;
                 }
@@ -635,6 +708,12 @@ int main(int argc, char **argv)
         }
 
         i++;
+    }
+
+    if (ext_str != NULL) {
+        if (!parse_extension_string(ext_str)) {
+            cmd_action = SHOW_USAGE;
+        }
     }
 
     switch (cmd_action) {
