@@ -1,7 +1,7 @@
                              jxutil readme
 
-The primary aim of this project is to create a JSON parser/generator
-that has the following characteristics and supporting features:
+The aim of this project is to create a JSON parser/generator that
+has the following features and characteristics:
 
 1.  It should be able to compile on most systems.
 2.  It should be nearly standalone, with minimal dependencies,
@@ -21,9 +21,5 @@ that has the following characteristics and supporting features:
     C-Strings, and UNIX file-descriptors (support for both blocking/
     non-blocking modes). And a low-level set of functions should be
     available to buffer input.
-
-The secondary aim is to add some support for parsing/generating XML,
-validating against a schema is not a priority, but could be done
-once the primary goals are achieved.
 
 - CJM
