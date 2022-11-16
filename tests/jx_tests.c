@@ -117,10 +117,10 @@ struct ext_token
     jx_ext_set value;
 } ext_token_types[] =
 {
-    { "all",            JX_EXT_UTF8_PI | JX_EXT_ARRAY_TRAILING_COMMA | JX_EXT_OBJECT_TRAILING_COMMA },
     { "utf8_pi",        JX_EXT_UTF8_PI },
     { "array_comma",    JX_EXT_ARRAY_TRAILING_COMMA },
     { "object_comma",   JX_EXT_OBJECT_TRAILING_COMMA },
+    { "all",            JX_EXT_ALL },
     { NULL, 0 }
 };
 
@@ -588,7 +588,7 @@ void print_usage()
         "   -c json_string  Validate that json_string is syntatically correct.\n"
         "   -f path         Validate that file at <path> contains JSON that is syntatically correct.\n"
         "   -m ext_string   Comma seperated list of extensions to enable when validating JSON (with the -c or -f options).\n"
-        "                   Ext: { all, utf8_pi, array_comma, object_comma }.\n"
+        "                   Ext: { utf8_pi, array_comma, object_comma, all }.\n"
         "   -s              Serialize JSON if valid and output to stdout (with -c or -f options).\n"
         "   -e              Escape and enclose JSON output in string.\n"
         "   -n              Don't append newline character after JSON ouput.\n"
@@ -624,91 +624,50 @@ bool parse_extension_string(char *ext_str)
 
 int main(int argc, char **argv)
 {
+    int ch;
+
     char *file, *json, *ext_str;
-    char opt;
-    int i, j, t, len;
 
     json = NULL;
+    file = NULL;
     ext_str = NULL;
-    i = 1;
 
-    while (i < argc) {
-        if (argv[i][0] == '-') {
-            t = i;
-            len = strlen(argv[i]);
-
-            for (j = 1; j < len; j++) {
-                opt = argv[t][j];
-
-                if (opt == 'a') {
-                    if (cmd_action != DEFAULT) {
-                        cmd_action = SHOW_USAGE;
-                        i++;
-                        continue;
-                    }
-
-                    cmd_action = RUN_TESTS;
-                }
-                else if (opt == 'c') {
-                    if (i == argc - 1 || cmd_action != DEFAULT) {
-                        cmd_action = SHOW_USAGE;
-                        i += 2;
-                        continue;
-                    }
-
-                    cmd_action = CHECK_STRING;
-
-                    json = argv[++i];
-                }
-                else if (opt == 'f') {
-                    if (i == argc - 1 || cmd_action != DEFAULT) {
-                        cmd_action = SHOW_USAGE;
-                        i += 2;
-                        continue;
-                    }
-
-                    cmd_action = CHECK_FILE;
-
-                    file = argv[++i];
-                }
-                else if (opt == 'm') {
-                    if (i == argc - 1) {
-                        cmd_action = SHOW_USAGE;
-                        i++;
-                        continue;
-                    }
-
-                    i++;
-
-                    ext_str = alloca(strlen(argv[i]) + 1);
-
-                    strcpy(ext_str, argv[i]);
-                }
-                else if (opt == 's') {
-                    cmd_opts.serialize = true;
-                }
-                else if (opt == 'e') {
-                    cmd_opts.escape = true;
-                }
-                else if (opt == 'v') {
-                    cmd_opts.verbose = true;
-                }
-                else if (opt == 'p') {
-                    cmd_opts.halt = true;
-                }
-                else if (opt == 'n') {
-                    cmd_opts.newline = true;
-                }
-                else {
-                    cmd_action = SHOW_USAGE;
-                }
-            }
+    while ((ch = getopt(argc, argv, "ac:f:m:sevpn")) != -1) {
+        switch (ch) {
+            case 'a':
+                cmd_action = RUN_TESTS;
+                break;
+            case 'c':
+                cmd_action = CHECK_STRING;
+                json = optarg;
+                break;
+            case 'f':
+                cmd_action = CHECK_FILE;
+                file = optarg;
+                break;
+            case 'm':
+                ext_str = alloca(strlen(optarg) + 1);
+                strcpy(ext_str, optarg);
+                break;
+            case 's':
+                cmd_opts.serialize = true;
+                break;
+            case 'e':
+                cmd_opts.escape = true;
+                break;
+            case 'v':
+                cmd_opts.verbose = true;
+                break;
+            case 'n':
+                cmd_opts.newline = true;
+                break;
+            case 'p':
+                cmd_opts.halt = true;
+                break;
+            case '?':
+                cmd_action = SHOW_USAGE;
+                break;
         }
-        else {
-            cmd_action = SHOW_USAGE;
-        }
-
-        i++;
     }
 
     if (ext_str != NULL) {
