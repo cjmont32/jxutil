@@ -31,11 +31,15 @@
 
 #define JX_INTERNAL
 
+#include <jx.h>
 #include <jx_util.h>
 
 #include <errno.h>
 #include <fcntl.h>
+
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 #define JX_RB_SIZE cntx->read_buffer_size
 

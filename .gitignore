@@ -1,5 +1,7 @@
 jx_tests
 *.swp
-.DS_Store
 bin/
 rel/
+
+# OSX
+.DS_Store

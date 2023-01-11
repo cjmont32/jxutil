@@ -36,6 +36,7 @@
 #include <stdarg.h>
 #include <math.h>
 
+#include <jx.h>
 #include <jx_value.h>
 
 jx_type jxv_get_type(jx_value *value)
@@ -226,8 +227,7 @@ void *jxv_get_ptr(jx_value *value)
 
 void jx_trie_reduce_key_charset(char *dst_key, unsigned char *src_key, size_t dst_size)
 {
-    int src_i;
-    int dst_i;
+    size_t src_i, dst_i;
 
     if (dst_key == NULL || src_key == NULL) {
         return;
@@ -251,8 +251,7 @@ void jx_trie_reduce_key_charset(char *dst_key, unsigned char *src_key, size_t ds
 
 void jx_trie_expand_key_charset(unsigned char *dst_key, char *src_key, size_t dst_size)
 {
-    int src_i;
-    int dst_i;
+    size_t src_i, dst_i;
 
     if (dst_key == NULL || src_key == NULL) {
         return;
@@ -755,7 +754,7 @@ bool jxs_resize(jx_value *str, size_t size)
 
 bool jxs_append_str(jx_value *dst, char *src)
 {
-    int new_length;
+    size_t new_length;
 
     if (dst == NULL || dst->type != JX_TYPE_STRING || dst->error) {
         return false;
@@ -788,8 +787,9 @@ bool jxs_append_jxs(jx_value *dst, jx_value *src)
 
 bool jxs_append_fmt(jx_value *dst, char *fmt, ...)
 {
-    int new_length;
     va_list ap;
+
+    size_t new_length;
 
     if (dst == NULL || dst->type != JX_TYPE_STRING || dst->error) {
         return false;
@@ -806,7 +806,7 @@ bool jxs_append_fmt(jx_value *dst, char *fmt, ...)
     }
 
     va_start(ap, fmt);
-    vsprintf(dst->v.vp + dst->length, fmt, ap);
+    vsprintf((char *)dst->v.vp + dst->length, fmt, ap);
     va_end(ap);
 
     dst->length = new_length;
@@ -944,7 +944,7 @@ void jxv_free(jx_value *value)
         }
     }
     else if (type == JX_TYPE_ARRAY) {
-        int i;
+        size_t i;
 
         for (i = 0; i < jxa_get_length(value); i++) {
             jxv_free(jxa_get(value, i));

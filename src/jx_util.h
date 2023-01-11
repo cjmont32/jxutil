@@ -29,6 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <jx.h>
 #include <jx_json.h>
 
 ssize_t jx_read(jx_cntx *cntx, int fd, size_t n_bytes);

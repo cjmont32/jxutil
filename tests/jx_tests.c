@@ -7,9 +7,15 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 
+#ifndef WIN32
+#include <unistd.h>
+#endif
+
+#include <jx.h>
 #include <jx_util.h>
+#include <jx_getopt.h>
+
 
 enum
 {
@@ -145,8 +151,8 @@ void sum_func(jx_value *number, void *ptr)
 
 bool iterate_array(jx_value *array, void *ptr, void (*f)(jx_value *value, void *ptr))
 {
-    int i;
     jx_value *value;
+    size_t i;
 
     if (array == NULL || jxv_get_type(array) != JX_TYPE_ARRAY) {
         return false;
@@ -313,7 +319,8 @@ bool strings_test()
 {
     jx_value *arr;
 
-    int i, max;
+    int i;
+    size_t  max;
     bool success;
 
     const char *string_tests[] = {
@@ -404,6 +411,7 @@ bool execute_simple_tests()
 {
     int i;
     int n_tests, n_passed;
+    float score;
     bool output = false;
 
     jx_cntx *cntx;
@@ -451,7 +459,9 @@ bool execute_simple_tests()
         jx_free(cntx);
     }
 
-    printf("%d of %d Tests Passed (%.1f%%)\n", n_passed, n_tests, ((float)n_passed / (float)n_tests) * 100);
+    score = ((float)n_passed / (float)n_tests) * 100.0f;
+
+    printf("%d of %d Tests Passed (%.1f%%)\n", n_passed, n_tests, score);
 
     return n_tests == n_passed;
 }
@@ -571,6 +581,9 @@ bool validate_json_file(const char *path)
         }
 
         free(json);
+    }
+    else {
+        printf("JSON OK\n");
     }
 
     jxv_free(value);
@@ -700,6 +713,7 @@ int main(int argc, char **argv)
 
     if (cmd_opts.halt) {
         printf("\nTest for leaks on PID [%d], then press enter to exit:", getpid());
+        fflush(stdout);
         getchar();
     }
 

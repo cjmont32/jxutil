@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 
+#include <jx.h>
 #include <jx_util.h>
 
 #define JX_ARRAY_STATE_DEFAULT                  0
