@@ -10,7 +10,7 @@
 | https://github.com/cjmont32/jxutil
 |
 ----------------------------------------------------------------------
-| MIT License
+| BSD 2-Clause License
 |
 | Copyright (c) 2018-2023, Cory Montgomery
 |
